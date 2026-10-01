@@ -1,6 +1,6 @@
 {
-  "name": "Zoe's Asthma Log",
-  "short_name": "Zoe's Log",
+  "name": "Asthma Log",
+  "short_name": "Asthma Log",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

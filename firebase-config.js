@@ -1,6 +1,6 @@
 // Paste your Firebase web app config here to sync the log between phones.
 // See README.md, step 3. These values identify your Firebase project; they are
-// not passwords. Access to Zoe's data is controlled by firestore.rules.
+// not passwords. Access to the log's data is controlled by firestore.rules.
 //
 // Leave it as null to save doses on this device only.
 window.FIREBASE_CONFIG = null;

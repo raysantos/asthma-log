@@ -1,6 +1,6 @@
-# Zoe's Asthma Log
+# Asthma Log
 
-A phone-friendly log of Zoe's asthma medications. It covers:
+A phone-friendly log of asthma medications. It covers:
 
 - Log each dose with the time given, the amount and an optional note.
 - See when the next dose is OK. For as-needed medications this comes from the hours between doses; for twice-a-day medications it shows a morning/night checklist.
@@ -8,7 +8,7 @@ A phone-friendly log of Zoe's asthma medications. It covers:
 - Copy a 30-day summary to send to her doctor.
 - Switch between light and dark mode.
 
-**Live app:** https://raysantos.github.io/zoe-asthma-log/
+**Live app:** https://raysantos.github.io/asthma-log/
 
 On a phone, open the link and choose **Add to Home Screen** so it opens like an app.
 
@@ -21,7 +21,7 @@ The repo is public, but it holds only code. Doses and medications live in your F
 
 ## One-time Firebase setup (about 10 minutes, free)
 
-1. **Create a project.** Go to https://console.firebase.google.com and click **Create a project**. You can name it something like `zoe-asthma-log`. Google Analytics isn't needed.
+1. **Create a project.** Go to https://console.firebase.google.com and click **Create a project**. You can name it something like `asthma-log`. Google Analytics isn't needed.
 2. **Turn on the database.** Go to **Build → Firestore Database → Create database**. Choose a US location (for example `us-east1`) and **production mode**.
 3. **Turn on Google sign-in.**
    - Go to **Build → Authentication → Get started → Sign-in method → Google → Enable**, then **Save**.
@@ -43,7 +43,7 @@ The repo is public, but it holds only code. Doses and medications live in your F
 
 ## Import links
 
-A link of the form `https://raysantos.github.io/zoe-asthma-log/#import=<data>` adds the medications and doses it carries to the log on whatever device opens it. The part after `#` stays in the browser and is never sent to GitHub. The app removes it from the address bar right after importing. Importing the same link twice doesn't create duplicates. Keep these links private, because anyone with one can read what's in it.
+A link of the form `https://raysantos.github.io/asthma-log/#import=<data>` adds the medications and doses it carries to the log on whatever device opens it. The part after `#` stays in the browser and is never sent to GitHub. The app removes it from the address bar right after importing. Importing the same link twice doesn't create duplicates. Keep these links private, because anyone with one can read what's in it.
 
 ## Files
 
@@ -54,4 +54,4 @@ A link of the form `https://raysantos.github.io/zoe-asthma-log/#import=<data>` a
 | `firestore.rules` | Who may read and write the log; paste into the Firebase console |
 | `manifest.webmanifest`, `icon.svg` | Home-screen name and icon |
 
-The next-dose times come from the spacing you enter for each medication. They aren't medical advice. Follow Zoe's asthma action plan and her doctor's directions.
+The next-dose times come from the spacing you enter for each medication. They aren't medical advice. Follow the asthma action plan and the doctor's directions.
