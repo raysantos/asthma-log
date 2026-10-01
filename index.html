@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add_to_home_screen,dark_mode,expand_more,light_mode&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add,add_to_home_screen,dark_mode,expand_more,light_mode&display=block">
 <style>
 /* Layout: one phone-first column — status up top, a big log form, then the week, history, and the medication list. */
 :root {
@@ -81,6 +81,10 @@ header { display: flex; flex-direction: column; gap: 6px; }
 .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .icon-btn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; flex: none; }
 .icon-btn:hover { color: var(--ink); border-color: var(--muted); }
+.wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 14px 24px 14px 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 1.05rem; box-shadow: 0 8px 24px rgb(0 0 0 / 0.22); white-space: nowrap; }
+.fab .material-symbols-outlined { font-size: 22px; line-height: 1; width: 22px; overflow: hidden; }
+.fab:active { transform: translateX(-50%) scale(0.97); }
 .topright { display: flex; align-items: center; gap: 8px; }
 .pill-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 .pill-btn:hover { border-color: var(--accent); }
@@ -227,7 +231,7 @@ textarea { min-height: 64px; resize: vertical; }
     <p class="fineprint">Times are based on the spacing you set for each medication. If she's having trouble breathing, follow her asthma action plan or call her doctor.</p>
   </section>
 
-  <section class="panel" aria-labelledby="logH">
+  <section class="panel" aria-labelledby="logH" id="logPanel">
     <h2 id="logH">Log a dose</h2>
     <div class="field">
       <label>Medication</label>
@@ -362,6 +366,7 @@ textarea { min-height: 64px; resize: vertical; }
   </section>
   </div>
 </div>
+<button class="fab" id="fab" type="button" hidden><span class="material-symbols-outlined" aria-hidden="true">add</span>Log dose</button>
 
 <script>
 const KIND_LABEL = { rescue: "Rescue", controller: "Controller", nebulizer: "Nebulizer", oral: "Oral", other: "Other" };
@@ -630,7 +635,7 @@ function checkSpacing() {
 }
 function showSpacing() { const w = checkSpacing(); if (w) setMsg("msg", w, "err"); else if ($("msg").classList.contains("err")) setMsg("msg", ""); }
 
-function renderAll() { renderStatus(); renderNext(); renderChips(); renderWeek(); renderHistory(); renderMeds(); updateSave(); }
+function renderAll() { renderStatus(); renderNext(); renderChips(); renderWeek(); renderHistory(); renderMeds(); updateSave(); if (typeof updateFab === "function") updateFab(); }
 
 $("nowBtn").addEventListener("click", () => { setNow(); updateSave(); showSpacing(); });
 $("when").addEventListener("input", () => { updateSave(); showSpacing(); });
@@ -692,6 +697,20 @@ paintTheme();
 themeBtn.addEventListener("click", () => { const next = isDark() ? "light" : "dark"; rootEl.dataset.theme = next; try { localStorage.setItem("zoe-meds-theme", next); } catch (_) {} paintTheme(); });
 
 const TABS = ["log", "history", "meds"];
+function updateFab() {
+  const fab = $("fab"); if (!fab) return;
+  const onLog = !$("tab-log").hidden;
+  const r = $("logPanel").getBoundingClientRect();
+  fab.hidden = onLog && r.top < window.innerHeight - 90 && r.bottom > 120;
+}
+window.addEventListener("scroll", updateFab, { passive: true });
+window.addEventListener("resize", updateFab);
+$("fab").addEventListener("click", () => {
+  showTab("log");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  $("logPanel").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  setTimeout(() => { const first = !$("lockBox").hidden ? $("pw") : $("medChips").querySelector(".chip"); if (first) first.focus({ preventScroll: true }); updateFab(); }, reduce ? 0 : 400);
+});
 function showTab(name, focus) {
   TABS.forEach(t => {
     const on = t === name, b = $("t-" + t);
@@ -700,6 +719,7 @@ function showTab(name, focus) {
     if (on && focus) b.focus();
   });
   try { localStorage.setItem("zoe-meds-tab", name); } catch (_) {}
+  if (typeof updateFab === "function") updateFab();
 }
 TABS.forEach((t, i) => {
   const b = $("t-" + t);
