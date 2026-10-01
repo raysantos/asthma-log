@@ -340,7 +340,7 @@ textarea { min-height: 64px; resize: vertical; }
       </div>
   </section>
 
-  <section class="panel" aria-labelledby="syncH">
+  <section class="panel" aria-labelledby="syncH" id="syncPanel" hidden>
     <h2 id="syncH">Sync &amp; backup</h2>
     <div class="acct" id="acct"></div>
     <div class="btnrow">
@@ -432,7 +432,7 @@ function renderChips() {
 }
 
 function updateSave() {
-  $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked; $("lockBtn").hidden = !unlocked;
+  $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked; $("lockBtn").hidden = !unlocked; $("syncPanel").hidden = !unlocked;
   $("saveBtn").disabled = !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
 }
 async function tryUnlock() {
