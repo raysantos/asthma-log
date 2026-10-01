@@ -61,11 +61,6 @@ html, body { margin: 0; }
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [hidden] { display: none !important; }
 img { max-width: 100%; }
-.locked .tabs, .locked .tabpanel { display: none !important; }
-.signin { align-items: flex-start; }
-.signin p { margin: 0; color: var(--muted); max-width: 60ch; }
-.gbtn { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 18px; font-weight: 700; }
-.gbtn:hover { border-color: var(--muted); }
 .acct { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
 .acct strong { color: var(--ink); overflow-wrap: anywhere; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -204,12 +199,6 @@ textarea { min-height: 64px; resize: vertical; }
 
   <div class="banner" id="offline" hidden>Couldn't connect to the log. Check your internet connection and reload.</div>
 
-  <section class="panel signin" id="signin" hidden>
-    <h2>Sign in to open the log</h2>
-    <p>Use a Google account that's been approved for this log. Doses sync between everyone who signs in.</p>
-    <button class="gbtn" id="signInBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Sign in with Google</button>
-    <p class="msg" id="signinMsg" role="status"></p>
-  </section>
 
   <div class="tabs" role="tablist" aria-label="Sections">
     <button type="button" role="tab" id="t-log" aria-controls="tab-log" aria-selected="true">Log Dose</button>
@@ -435,20 +424,26 @@ function updateSave() {
   $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked; $("lockBtn").hidden = !unlocked; $("syncPanel").hidden = !unlocked;
   $("saveBtn").disabled = !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
 }
+let remoteAuth = null; // set when the shared Firebase log is connected
 async function tryUnlock() {
   const v = $("pw").value;
   if (!v) return;
-  if ((await hashPass(v)) === PASS_HASH) {
+  $("unlockBtn").disabled = true;
+  let r;
+  try { r = remoteAuth ? await remoteAuth.unlock(v) : { ok: (await hashPass(v)) === PASS_HASH }; }
+  finally { $("unlockBtn").disabled = false; }
+  if (r.ok) {
     unlocked = true; $("pw").value = "";
-    try { localStorage.setItem("asthma-log-unlocked", PASS_HASH); } catch (_) {}
+    if (!remoteAuth) { try { localStorage.setItem("asthma-log-unlocked", PASS_HASH); } catch (_) {} }
     setMsg("msg", "Unlocked on this device.", "ok"); renderAll();
     if (db) maybeImportFromHash();
-  } else { setMsg("msg", "That password isn't right. Try again.", "err"); $("pw").select(); }
+  } else { setMsg("msg", r.why || "That password isn't right. Try again.", "err"); $("pw").select(); }
 }
 $("unlockBtn").addEventListener("click", tryUnlock);
 $("pw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); tryUnlock(); } });
 $("lockBtn").addEventListener("click", () => {
   unlocked = false; try { localStorage.removeItem("asthma-log-unlocked"); } catch (_) {}
+  if (remoteAuth) remoteAuth.lock();
   setMsg("syncMsg", "Locked. Enter the password on the Log Dose tab to log again.", "ok"); renderAll();
 });
 
@@ -833,7 +828,7 @@ async function maybeImportFromHash() {
   const cfg = window.FIREBASE_CONFIG;
   if (!cfg || !cfg.apiKey) {
     db = makeLocalDb();
-    setAcct([el("span", null, "Saving on this device only. Set up Firebase (see the README) to sync between phones.")]);
+    setAcct([el("span", null, "Saving on this device only. Connect Firebase (see the README) to share one log between phones.")]);
     listen();
     await maybeImportFromHash();
     return;
@@ -843,48 +838,37 @@ async function maybeImportFromHash() {
   try {
     [appMod, authMod, fs] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js")]);
   } catch (e) {
-    $("offline").textContent = "Couldn't load the sync service. Check your internet connection and reload.";
     $("offline").hidden = false; return;
   }
   const app = appMod.initializeApp(cfg);
   let store;
   try { store = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() }); } catch (e) { store = fs.getFirestore(app); }
   const auth = authMod.getAuth(app);
-  const provider = new authMod.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-
-  $("signInBtn").addEventListener("click", async () => {
-    setMsg("signinMsg", "");
-    try { await authMod.signInWithPopup(auth, provider); }
-    catch (e) {
-      if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) { authMod.signInWithRedirect(auth, provider); return; }
-      if (e && e.code === "auth/popup-closed-by-user") return;
-      setMsg("signinMsg", "Sign-in didn't finish (" + (e && e.code || "error") + "). Try again.", "err");
-    }
-  });
-  authMod.getRedirectResult(auth).catch(() => {});
-
+  // One shared family account. The password is checked by Firebase, not by this page.
+  const FAMILY_EMAIL = "asthma-log-family@example.com";
+  unlocked = false;
+  remoteAuth = {
+    async unlock(pw) {
+      try { await authMod.signInWithEmailAndPassword(auth, FAMILY_EMAIL, pw); return { ok: true }; }
+      catch (e) {
+        const c = e && e.code || "";
+        if (c === "auth/too-many-requests") return { ok: false, why: "Too many tries. Wait a few minutes, then try again." };
+        if (c === "auth/network-request-failed") return { ok: false, why: "No internet connection. Connect and try again." };
+        // First unlock ever: create the family account, but only with the right password.
+        if ((await hashPass(pw)) === PASS_HASH) {
+          try { await authMod.createUserWithEmailAndPassword(auth, FAMILY_EMAIL, pw); return { ok: true }; } catch (_) {}
+        }
+        return { ok: false };
+      }
+    },
+    lock() { return authMod.signOut(auth); }
+  };
+  db = makeFireDb(fs, store);
+  setAcct([el("span", null, "Shared log, saved online. Everyone with the link sees the same doses.")]);
+  listen();
   authMod.onAuthStateChanged(auth, user => {
-    stopListening(); meds = []; doses = [];
-    if (!user) {
-      db = null; wrapEl.classList.add("locked"); $("signin").hidden = false;
-      $("status").replaceChildren(el("span", null, "Signed out"));
-      renderAll(); return;
-    }
-    db = makeFireDb(fs, store);
-    wrapEl.classList.remove("locked"); $("signin").hidden = true;
-    const out = el("button", "ghost", "Sign out"); out.type = "button";
-    out.addEventListener("click", () => authMod.signOut(auth));
-    const who = el("span"); who.append("Signed in as ", el("strong", null, user.email || "your account"), " · syncing");
-    setAcct([who, out]);
-    renderAll();
-    listen(() => {
-      stopListening(); db = null; meds = []; doses = [];
-      wrapEl.classList.add("locked"); $("signin").hidden = false;
-      setMsg("signinMsg", (user.email || "This account") + " isn't approved for this log. Sign in with an approved Google account.", "err");
-      authMod.signOut(auth);
-    });
-    maybeImportFromHash();
+    unlocked = !!user; renderAll();
+    if (user) maybeImportFromHash();
   });
 })();
 </script>

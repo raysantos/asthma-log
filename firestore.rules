@@ -1,28 +1,27 @@
 rules_version = '2';
 
-// Only the Google accounts listed below can read or write the log.
-// Replace the example addresses with the parents' / caregivers' Gmail addresses,
-// then paste this into Firebase console → Firestore Database → Rules → Publish.
+// Anyone can view the log. Only the shared family account (unlocked with the
+// family password in the app) can add, change or delete anything.
+// Paste this into Firebase console -> Firestore Database -> Rules -> Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function approved() {
+    function family() {
       return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in [
-          'parent1@example.com',
-          'parent2@example.com'
-        ];
+        && request.auth.token.email == 'asthma-log-family@example.com';
     }
 
     match /config/meds {
-      allow read, write: if approved();
+      allow read: if true;
+      allow write: if family() && request.resource.data.items is list;
     }
 
     match /doses/{doseId} {
-      allow read, delete: if approved();
-      allow create, update: if approved()
+      allow read: if true;
+      allow delete: if family();
+      allow create, update: if family()
         && request.resource.data.at is number
-        && request.resource.data.name is string;
+        && request.resource.data.name is string
+        && request.resource.data.keys().hasOnly(['medId', 'name', 'kind', 'dose', 'note', 'at', 'loggedAt']);
     }
 
     // Everything else is closed.

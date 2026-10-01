@@ -14,38 +14,30 @@ On a phone, open the link and choose **Add to Home Screen** so it opens like an 
 
 ## Password lock
 
-Logging doses, deleting them, changing medications and importing all require the family password. You enter it once per device, and it's remembered there until you tap **Lock this device** under Medications → Sync & backup. Anyone can still view the log.
+Anyone can view the log. To log a dose, delete one or change medications, you enter the family password once on each device.
 
-The app stores only a hash of the password. Because the code is public, this lock keeps out casual visitors, but it isn't strong security.
+- **With Firebase connected (the shared log):** the password is checked by Firebase's sign-in service, and the database's security rules (`firestore.rules`) refuse any change that doesn't come from the family account. The page itself can't be edited to get around it. The first unlock creates the family account, so enter the password on the live app right after Firebase is connected.
+- **Without Firebase:** the page checks a hash of the password. That only keeps out casual visitors.
+
+To lock a device again, go to **Medications → Sync & backup → Lock this device**.
 
 ## How saving works
 
-- **Before Firebase is set up**, doses are saved in the browser on each device. They don't sync, and clearing the browser's data erases them.
-- **After Firebase is set up**, everyone who signs in with an approved Google account sees the same log, live.
+- **Without Firebase**, doses are saved in the browser on each device. They don't sync between phones.
+- **With Firebase**, there is one shared log that's saved online. Every phone that opens the app sees the same doses, live.
 
-The repo is public, but it holds only code. Doses and medications live in your Firebase project, and only the Google accounts you list in `firestore.rules` can read or write them.
+## One-time Firebase setup (free)
 
-## One-time Firebase setup (about 10 minutes, free)
+Your Google account needs 2-Step Verification turned on before Firebase will let you in.
 
-1. **Create a project.** Go to https://console.firebase.google.com and click **Create a project**. You can name it something like `asthma-log`. Google Analytics isn't needed.
-2. **Turn on the database.** Go to **Build → Firestore Database → Create database**. Choose a US location (for example `us-east1`) and **production mode**.
-3. **Turn on Google sign-in.**
-   - Go to **Build → Authentication → Get started → Sign-in method → Google → Enable**, then **Save**.
-   - Open the **Settings** tab, go to **Authorized domains**, click **Add domain** and enter `raysantos.github.io`.
-4. **Connect the app.**
-   - In Firebase, go to **Project settings** (gear icon) → **Your apps**. Click the web icon `</>`, give it a nickname and register it. Hosting isn't needed.
-   - Copy the `firebaseConfig` values it shows.
-   - In this repo, open `firebase-config.js` on GitHub and click the pencil to edit.
-   - Replace `window.FIREBASE_CONFIG = null;` with your values. The format is in the example in the file.
-   - Commit the change. GitHub Pages updates within a minute or two.
-5. **Lock it down.**
-   - Copy `firestore.rules` from this repo.
-   - Replace `parent1@example.com` and `parent2@example.com` with the Gmail addresses that should have access.
-   - In Firebase, go to **Firestore Database → Rules**, paste the edited rules and click **Publish**.
-   - Don't commit real addresses here; the repo is public.
-6. **Sign in and bring over the existing log.** Open the app and sign in with Google. Then do either of these:
-   - Open your private import link (the app address ending in `#import=…`).
-   - Or go to the **Medications** tab → **Sync & backup** → **Import backup** and paste a backup.
+1. **Create a project.** Go to https://console.firebase.google.com and click **Create a project** (for example `asthma-log`). Google Analytics isn't needed.
+2. **Turn on the database.** Go to **Build → Firestore Database → Create database**. Choose a US location and **production mode**.
+3. **Turn on password sign-in.** Go to **Build → Authentication → Get started → Sign-in method → Email/Password → Enable**, then **Save**.
+4. **Lock the database.** In Firestore Database → **Rules**, paste the contents of `firestore.rules`, then click **Publish**.
+5. **Connect the app.**
+   - Go to **Project settings → Your apps → Web (`</>`)**, register the app, and copy the `firebaseConfig` values.
+   - Put them in `firebase-config.js`.
+6. **Unlock once.** Open the app, enter the family password on the **Log Dose** tab, then open your import link to load the existing log.
 
 ## Import links
 
