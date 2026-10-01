@@ -37,7 +37,7 @@ Your Google account needs 2-Step Verification turned on before Firebase will let
 5. **Connect the app.**
    - Go to **Project settings → Your apps → Web (`</>`)**, register the app, and copy the `firebaseConfig` values.
    - Put them in `firebase-config.js`.
-6. **Unlock once.** Open the app, enter the family password on the **Log Dose** tab, then open your import link to load the existing log.
+6. **Unlock once.** Open the app, enter the family password on the **Dosage** tab, then open your import link to load the existing log.
 
 ## Import links
 

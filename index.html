@@ -219,7 +219,7 @@ textarea { min-height: 64px; resize: vertical; }
 
 
   <div class="tabs" role="tablist" aria-label="Sections">
-    <button type="button" role="tab" id="t-log" aria-controls="tab-log" aria-selected="true">Log Dose</button>
+    <button type="button" role="tab" id="t-log" aria-controls="tab-log" aria-selected="true">Dosage</button>
     <button type="button" role="tab" id="t-history" aria-controls="tab-history" aria-selected="false" tabindex="-1">History</button>
     <button type="button" role="tab" id="t-meds" aria-controls="tab-meds" aria-selected="false" tabindex="-1">Medications</button>
   </div>
@@ -463,7 +463,7 @@ $("pw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDef
 $("lockBtn").addEventListener("click", () => {
   unlocked = false; try { localStorage.removeItem("asthma-log-unlocked"); } catch (_) {}
   if (remoteAuth) remoteAuth.lock();
-  setMsg("syncMsg", "Locked. Enter the password on the Log Dose tab to log again.", "ok"); renderAll();
+  setMsg("syncMsg", "Locked. Enter the password on the Dosage tab to log again.", "ok"); renderAll();
 });
 
 function renderWeek() {
@@ -658,7 +658,7 @@ $("saveBtn").addEventListener("click", async () => {
 $("addMedBtn").addEventListener("click", async () => {
   const name = $("mName").value.trim();
   if (!name) { setMsg("medMsg", "Give the medication a name.", "err"); return; }
-  if (!unlocked) { setMsg("medMsg", "Unlock with the password on the Log Dose tab first.", "err"); return; }
+  if (!unlocked) { setMsg("medMsg", "Unlock with the password on the Dosage tab first.", "err"); return; }
   if (!db || !canWrite) { setMsg("medMsg", "Saving isn't available in this view.", "err"); return; }
   const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, delivery: $("mDelivery").value, dose: $("mDose").value.trim() };
   const hrs = parseFloat($("mHours").value);
@@ -824,7 +824,7 @@ async function importBackup(data) {
   return { meds: inMeds.length, doses: inDoses.length };
 }
 $("importBtn").addEventListener("click", async () => {
-  if (!unlocked) { setMsg("syncMsg", "Unlock with the password on the Log Dose tab first.", "err"); return; }
+  if (!unlocked) { setMsg("syncMsg", "Unlock with the password on the Dosage tab first.", "err"); return; }
   if (!db) { setMsg("syncMsg", "Sign in first, then import.", "err"); return; }
   let data;
   try { data = JSON.parse($("importText").value); } catch (e) { setMsg("syncMsg", "That doesn't look like a backup. Paste the whole thing, including the { } at the start and end.", "err"); return; }
