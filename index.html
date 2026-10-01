@@ -384,7 +384,7 @@ function renderStatus() {
   const rescue = doses.find(d => d.kind === "rescue");
   const last = doses[0];
   if (!doses.length) { s.append(el("span", null, "No doses logged yet.")); return; }
-  if (rescue) { s.append(el("span", null, "Last rescue dose"), el("strong", "num", ago(rescue.at))); }
+  if (rescue) { s.append(el("span", null, "Last Dose: " + rescue.name.replace(/\s+(inhaler|nebulizer)$/i, "")), el("strong", "num", ago(rescue.at))); }
   else { s.append(el("span", null, "No rescue doses logged.")); }
   if (last && last !== rescue) s.append(el("span", null, "· last of any kind " + ago(last.at)));
 }
