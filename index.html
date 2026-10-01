@@ -107,6 +107,7 @@ textarea { min-height: 64px; resize: vertical; }
 .primary { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 14px; font-weight: 700; font-size: 1.05rem; }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg { min-height: 1.5em; color: var(--muted); font-size: 0.9rem; margin: 0; }
+.msg:empty { display: none; }
 .msg.ok { color: var(--controller); }
 .msg.err { color: var(--rescue); }
 
