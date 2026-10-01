@@ -1,17 +1,11 @@
-// Paste your Firebase web app config here to sync the log between phones.
-// See README.md, step 3. These values identify your Firebase project; they are
-// not passwords. Access to the log's data is controlled by firestore.rules.
-//
-// Leave it as null to save doses on this device only.
-window.FIREBASE_CONFIG = null;
-
-/* Example — replace with your own values:
+// Firebase web app settings for the shared Asthma Log.
+// These values identify the Firebase project; they are not passwords.
+// Who can change the log is enforced by the database rules (see firestore.rules).
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abc123"
+  apiKey: "AIzaSyAsCo4knVBkPC2xxVhcxdORd1umz6YJ7qo",
+  authDomain: "asthma-log-3ad63.firebaseapp.com",
+  projectId: "asthma-log-3ad63",
+  storageBucket: "asthma-log-3ad63.firebasestorage.app",
+  messagingSenderId: "323865708346",
+  appId: "1:323865708346:web:02ca527341744cb7827203"
 };
-*/
