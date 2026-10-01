@@ -37,10 +37,13 @@ The repo is public, but it holds only code. Doses and medications live in your F
    - Replace `parent1@example.com` and `parent2@example.com` with the Gmail addresses that should have access.
    - In Firebase, go to **Firestore Database → Rules**, paste the edited rules and click **Publish**.
    - Don't commit real addresses here; the repo is public.
-6. **Sign in and bring over the existing log.**
-   - Open the app and sign in with Google.
-   - Go to the **Medications** tab → **Sync & backup** → **Import backup**.
-   - Paste the backup text and tap **Import into the log**.
+6. **Sign in and bring over the existing log.** Open the app and sign in with Google. Then do either of these:
+   - Open your private import link (the app address ending in `#import=…`).
+   - Or go to the **Medications** tab → **Sync & backup** → **Import backup** and paste a backup.
+
+## Import links
+
+A link of the form `https://raysantos.github.io/zoe-asthma-log/#import=<data>` adds the medications and doses it carries to the log on whatever device opens it. The part after `#` stays in the browser and is never sent to GitHub. The app removes it from the address bar right after importing. Importing the same link twice doesn't create duplicates. Keep these links private, because anyone with one can read what's in it.
 
 ## Files
 

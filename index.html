@@ -701,10 +701,11 @@ function makeFireDb(fs, store) {
   };
 }
 
-let unsubs = [];
+let unsubs = [], medsReady = null, markMedsReady = () => {};
 function stopListening() { unsubs.forEach(u => { try { u(); } catch (_) {} }); unsubs = []; }
 function listen(onDenied) {
   stopListening();
+  medsReady = new Promise(r => { markMedsReady = r; });
   const fail = (which) => (e) => {
     if (e && e.code === "permission-denied") return onDenied && onDenied();
     setMsg(which, "Lost connection to the log. Reload the page.", "err");
@@ -712,6 +713,7 @@ function listen(onDenied) {
   unsubs.push(db.doc("config/meds").onSnapshot(s => {
     const d = s.exists ? s.data() : null;
     meds = d && Array.isArray(d.items) ? d.items : [];
+    markMedsReady();
     if (selectedMed && !meds.some(m => m.id === selectedMed)) selectedMed = null;
     if (!selectedMed && meds.length === 1) { selectedMed = meds[0].id; if (meds[0].dose && !$("dose").value) $("dose").value = meds[0].dose; }
     renderAll();
@@ -731,23 +733,48 @@ $("exportBtn").addEventListener("click", async () => {
   catch (e) { const ta = el("textarea"); ta.value = text; ta.style.minHeight = "140px"; $("syncMsg").replaceChildren(ta); ta.select(); }
 });
 $("importToggle").addEventListener("click", () => { $("importBox").hidden = !$("importBox").hidden; });
+async function importBackup(data) {
+  const inMeds = Array.isArray(data.meds) ? data.meds : [], inDoses = Array.isArray(data.doses) ? data.doses : [];
+  const byId = new Map(meds.map(m => [m.id, m])); inMeds.forEach(m => m && m.id && byId.set(m.id, m));
+  await db.doc("config/meds").set({ items: [...byId.values()] });
+  for (const d of inDoses) {
+    if (!d || !isFinite(d.at)) continue;
+    const { id, ...rest } = d;
+    await db.collection("doses").doc(id || ("d" + d.at)).set(rest);
+  }
+  return { meds: inMeds.length, doses: inDoses.length };
+}
 $("importBtn").addEventListener("click", async () => {
   if (!db) { setMsg("syncMsg", "Sign in first, then import.", "err"); return; }
   let data;
   try { data = JSON.parse($("importText").value); } catch (e) { setMsg("syncMsg", "That doesn't look like a backup. Paste the whole thing, including the { } at the start and end.", "err"); return; }
-  const inMeds = Array.isArray(data.meds) ? data.meds : [], inDoses = Array.isArray(data.doses) ? data.doses : [];
-  const byId = new Map(meds.map(m => [m.id, m])); inMeds.forEach(m => m && m.id && byId.set(m.id, m));
   try {
-    await db.doc("config/meds").set({ items: [...byId.values()] });
-    for (const d of inDoses) {
-      if (!d || !isFinite(d.at)) continue;
-      const { id, ...rest } = d;
-      await db.collection("doses").doc(id || ("d" + d.at)).set(rest);
-    }
+    const n = await importBackup(data);
     $("importText").value = ""; $("importBox").hidden = true;
-    setMsg("syncMsg", "Imported " + inMeds.length + " medications and " + inDoses.length + " doses.", "ok");
+    setMsg("syncMsg", "Imported " + n.meds + " medications and " + n.doses + " doses.", "ok");
   } catch (e) { setMsg("syncMsg", "Import stopped partway. Check your connection and import again; doses already added won't be duplicated.", "err"); }
 });
+// A link ending in #import=<data> fills in the log on this device (the part after # never reaches the server).
+function readHashImport() {
+  const m = location.hash.match(/^#import=([A-Za-z0-9_-]+)$/);
+  if (!m) return null;
+  try {
+    const b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+  } catch (e) { return null; }
+}
+async function maybeImportFromHash() {
+  if (!/^#import=/.test(location.hash)) return;
+  const data = readHashImport();
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {}
+  if (!data) { setMsg("msg", "That import link didn't work. Copy the whole link and try again.", "err"); return; }
+  try {
+    await medsReady;
+    const n = await importBackup(data);
+    setMsg("msg", "Added " + n.meds + " medications and " + n.doses + " doses from the link.", "ok");
+  } catch (e) { setMsg("msg", "Couldn't finish importing from the link. Open it again; nothing will be doubled.", "err"); }
+}
 
 // ---------- Start ----------
 (async () => {
@@ -756,6 +783,7 @@ $("importBtn").addEventListener("click", async () => {
     db = makeLocalDb();
     setAcct([el("span", null, "Saving on this device only. Set up Firebase (see the README) to sync between phones.")]);
     listen();
+    await maybeImportFromHash();
     return;
   }
   const V = "10.12.2", base = "https://www.gstatic.com/firebasejs/" + V + "/";
@@ -804,6 +832,7 @@ $("importBtn").addEventListener("click", async () => {
       setMsg("signinMsg", (user.email || "This account") + " isn't approved for Zoe's log. Sign in with an approved Google account.", "err");
       authMod.signOut(auth);
     });
+    maybeImportFromHash();
   });
 })();
 </script>
