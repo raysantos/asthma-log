@@ -866,6 +866,7 @@ async function maybeImportFromHash() {
   db = makeFireDb(fs, store);
   setAcct([el("span", null, "Shared log, saved online. Everyone with the link sees the same doses.")]);
   listen();
+  if (!auth.currentUser) maybeImportFromHash(); // shows "enter the password" if an import link is waiting
   authMod.onAuthStateChanged(auth, user => {
     unlocked = !!user; renderAll();
     if (user) maybeImportFromHash();
