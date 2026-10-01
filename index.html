@@ -69,6 +69,7 @@ img { max-width: 100%; }
 .acct { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
 .acct strong { color: var(--ink); overflow-wrap: anywhere; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.lockbox { border-top: 1px dashed var(--line); padding-top: 14px; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
 .wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
 h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
@@ -247,6 +248,15 @@ textarea { min-height: 64px; resize: vertical; }
       <label for="note">Note (optional)</label>
       <textarea id="note" placeholder="Why, or how she was doing — e.g. coughing after soccer"></textarea>
     </div>
+    <div class="lockbox" id="lockBox" hidden>
+      <div class="field">
+        <label for="pw">Password to log doses</label>
+        <div class="timefield">
+          <input id="pw" type="password" autocomplete="current-password" enterkeyhint="go">
+          <button class="ghost" id="unlockBtn" type="button">Unlock</button>
+        </div>
+      </div>
+    </div>
     <button class="primary" id="saveBtn" type="button" disabled>Save dose</button>
     <p class="msg" id="msg" role="status"></p>
   </section>
@@ -334,6 +344,7 @@ textarea { min-height: 64px; resize: vertical; }
     <h2 id="syncH">Sync &amp; backup</h2>
     <div class="acct" id="acct"></div>
     <div class="btnrow">
+      <button class="ghost" id="lockBtn" type="button" hidden>Lock this device</button>
       <button class="ghost" id="exportBtn" type="button">Copy backup</button>
       <button class="ghost" id="importToggle" type="button">Import backup</button>
     </div>
@@ -353,6 +364,13 @@ textarea { min-height: 64px; resize: vertical; }
 const KIND_LABEL = { rescue: "Rescue", controller: "Controller", nebulizer: "Nebulizer", oral: "Oral", other: "Other" };
 const DELIVERY_LABEL = { inhaler: "Inhaler", nebulizer: "Nebulizer", oral: "Pill / liquid", other: "" };
 const $ = (id) => document.getElementById(id);
+const PASS_HASH = "b964d0a5f9776cd9f3abfb9d303e1c11eae18ca9b28eba1e5169af14e8d9112f";
+let unlocked = false;
+try { unlocked = localStorage.getItem("asthma-log-unlocked") === PASS_HASH; } catch (_) {}
+async function hashPass(p) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("asthma-log:" + p));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
 let db = null, canWrite = true; // db: Firestore or on-device adapter
 let meds = [], doses = [], selectedMed = null, armedDel = null;
 
@@ -413,7 +431,26 @@ function renderChips() {
   });
 }
 
-function updateSave() { $("saveBtn").disabled = !db || !canWrite || !meds.some(m => m.id === selectedMed) || !$("when").value; }
+function updateSave() {
+  $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked; $("lockBtn").hidden = !unlocked;
+  $("saveBtn").disabled = !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
+}
+async function tryUnlock() {
+  const v = $("pw").value;
+  if (!v) return;
+  if ((await hashPass(v)) === PASS_HASH) {
+    unlocked = true; $("pw").value = "";
+    try { localStorage.setItem("asthma-log-unlocked", PASS_HASH); } catch (_) {}
+    setMsg("msg", "Unlocked on this device.", "ok"); renderAll();
+    if (db) maybeImportFromHash();
+  } else { setMsg("msg", "That password isn't right. Try again.", "err"); $("pw").select(); }
+}
+$("unlockBtn").addEventListener("click", tryUnlock);
+$("pw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); tryUnlock(); } });
+$("lockBtn").addEventListener("click", () => {
+  unlocked = false; try { localStorage.removeItem("asthma-log-unlocked"); } catch (_) {}
+  setMsg("syncMsg", "Locked. Enter the password on the Log Dose tab to log again.", "ok"); renderAll();
+});
 
 function renderWeek() {
   const now = new Date(); const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6);
@@ -467,7 +504,7 @@ function renderHistory() {
     const subText = [d.dose, d.note].filter(Boolean).join(" · ");
     if (subText) what.append(el("div", "sub", subText));
     row.append(what);
-    if (db && canWrite) {
+    if (db && canWrite && unlocked) {
       const del = el("button", "del" + (armedDel === d.id ? " armed" : ""), armedDel === d.id ? "Tap to delete" : "Delete");
       del.type = "button";
       del.addEventListener("click", async () => {
@@ -497,7 +534,7 @@ function renderMeds() {
     const subLine = [DELIVERY_LABEL[m.delivery] || "", m.dose ? "Usual: " + m.dose : "", sched].filter(Boolean).join(" · ");
     if (subLine) info.append(el("span", "sub", subLine));
     row.append(info);
-    if (db && canWrite) {
+    if (db && canWrite && unlocked) {
       const rm = el("button", "del" + (armedDel === "m:" + m.id ? " armed" : ""), armedDel === "m:" + m.id ? "Tap to remove" : "Remove");
       rm.type = "button";
       rm.addEventListener("click", async () => {
@@ -607,6 +644,7 @@ $("saveBtn").addEventListener("click", async () => {
 $("addMedBtn").addEventListener("click", async () => {
   const name = $("mName").value.trim();
   if (!name) { setMsg("medMsg", "Give the medication a name.", "err"); return; }
+  if (!unlocked) { setMsg("medMsg", "Unlock with the password on the Log Dose tab first.", "err"); return; }
   if (!db || !canWrite) { setMsg("medMsg", "Saving isn't available in this view.", "err"); return; }
   const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, delivery: $("mDelivery").value, dose: $("mDose").value.trim() };
   const hrs = parseFloat($("mHours").value);
@@ -757,6 +795,7 @@ async function importBackup(data) {
   return { meds: inMeds.length, doses: inDoses.length };
 }
 $("importBtn").addEventListener("click", async () => {
+  if (!unlocked) { setMsg("syncMsg", "Unlock with the password on the Log Dose tab first.", "err"); return; }
   if (!db) { setMsg("syncMsg", "Sign in first, then import.", "err"); return; }
   let data;
   try { data = JSON.parse($("importText").value); } catch (e) { setMsg("syncMsg", "That doesn't look like a backup. Paste the whole thing, including the { } at the start and end.", "err"); return; }
@@ -778,6 +817,7 @@ function readHashImport() {
 }
 async function maybeImportFromHash() {
   if (!/^#import=/.test(location.hash)) return;
+  if (!unlocked) { setMsg("msg", "Enter the password below to finish adding the data from this link.", "err"); return; }
   const data = readHashImport();
   try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {}
   if (!data) { setMsg("msg", "That import link didn't work. Copy the whole link and try again.", "err"); return; }

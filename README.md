@@ -12,6 +12,12 @@ A phone-friendly log of asthma medications. It covers:
 
 On a phone, open the link and choose **Add to Home Screen** so it opens like an app.
 
+## Password lock
+
+Logging doses, deleting them, changing medications and importing all require the family password. You enter it once per device, and it's remembered there until you tap **Lock this device** under Medications → Sync & backup. Anyone can still view the log.
+
+The app stores only a hash of the password. Because the code is public, this lock keeps out casual visitors, but it isn't strong security.
+
 ## How saving works
 
 - **Before Firebase is set up**, doses are saved in the browser on each device. They don't sync, and clearing the browser's data erases them.
