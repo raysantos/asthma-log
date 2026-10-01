@@ -550,11 +550,6 @@ function renderNext() {
       }
       card.append(el("span", "pill " + pill[0], pill[1]));
       card.append(whenBlock(when[0], when[1]));
-      if (m.schedule === "twice") {
-        const slots = el("div", "slots");
-        slots.append(el("span", "slot" + (am ? " done" : ""), (am ? "✓ " : "") + "Morning"), el("span", "slot" + (pm ? " done" : ""), (pm ? "✓ " : "") + "Night"));
-        card.append(slots);
-      }
       if (last) card.append(el("div", "sub", "Last given " + clockWithDay(last.at)));
     } else if (!h) {
       card.append(el("div", "sub", "Last given " + clockWithDay(last.at) + " (" + ago(last.at) + ")"), el("div", "sub", "No spacing set for this medication."));
