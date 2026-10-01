@@ -37,6 +37,8 @@
   --display: "Source Sans 3", "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
   --body: "Source Sans 3", "Segoe UI", "Helvetica Neue", system-ui, -apple-system, sans-serif;
   --radius: 14px;
+  --picker-filter: brightness(0);
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -44,7 +46,7 @@
     --accent: #5fb3d1; --accent-ink: #0c1a20;
     --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
     --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
-    color-scheme: dark;
+    --picker-filter: brightness(0) invert(1); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
@@ -52,7 +54,7 @@
   --accent: #5fb3d1; --accent-ink: #0c1a20;
   --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
   --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
-  color-scheme: dark;
+  --picker-filter: brightness(0) invert(1); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -99,6 +101,11 @@ header { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
+.row.logrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); }
+@media (max-width: 600px) { .row.logrow { grid-template-columns: 1fr; } }
+input[type="datetime-local"] { min-width: 0; font-variant-numeric: tabular-nums; }
+input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.75; filter: var(--picker-filter); }
+input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 input, select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
 textarea { min-height: 64px; resize: vertical; }
 .timefield { display: flex; gap: 8px; }
@@ -223,7 +230,7 @@ textarea { min-height: 64px; resize: vertical; }
       <div class="chips" id="medChips"></div>
       <p class="empty" id="noMeds" hidden>Add Zoe's medications in the Medications tab first, then they'll show up here as quick buttons.</p>
     </div>
-    <div class="row">
+    <div class="row logrow">
       <div class="field">
         <label for="dose">Amount</label>
         <input id="dose" placeholder="e.g. 2 puffs" autocomplete="off">
