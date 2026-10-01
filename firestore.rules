@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Only the Google accounts listed below can read or write Zoe's log.
+// Replace the example addresses with the parents' / caregivers' Gmail addresses,
+// then paste this into Firebase console → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function approved() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'parent1@example.com',
+          'parent2@example.com'
+        ];
+    }
+
+    match /config/meds {
+      allow read, write: if approved();
+    }
+
+    match /doses/{doseId} {
+      allow read, delete: if approved();
+      allow create, update: if approved()
+        && request.resource.data.at is number
+        && request.resource.data.name is string;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

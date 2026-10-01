@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6a86">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zoe's Log">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="firebase-config.js"></script>
+<title>Zoe's Asthma Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=dark_mode,expand_more,light_mode&display=block">
+<style>
+/* Layout: one phone-first column — status up top, a big log form, then the week, history, and the medication list. */
+:root {
+  --bg: #eef3f5;
+  --surface: #ffffff;
+  --ink: #18262e;
+  --muted: #5b6d77;
+  --line: #d5e0e5;
+  --accent: #1d6a86;
+  --accent-ink: #ffffff;
+  --rescue: #b84a32;
+  --rescue-soft: #f8e4de;
+  --controller: #3f7a4c;
+  --controller-soft: #e0efe2;
+  --neb: #2f6aa8;
+  --neb-soft: #dde9f6;
+  --oral: #7a4f9a;
+  --oral-soft: #ece2f4;
+  --other: #5b6d77;
+  --other-soft: #e6ecef;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10181d; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
+    --accent: #5fb3d1; --accent-ink: #0c1a20;
+    --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
+    --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10181d; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
+  --accent: #5fb3d1; --accent-ink: #0c1a20;
+  --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
+  --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+.locked .tabs, .locked .tabpanel { display: none !important; }
+.signin { align-items: flex-start; }
+.signin p { margin: 0; color: var(--muted); max-width: 60ch; }
+.gbtn { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 18px; font-weight: 700; }
+.gbtn:hover { border-color: var(--muted); }
+.acct { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+.acct strong { color: var(--ink); overflow-wrap: anywhere; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
+h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; font-weight: 600; }
+.eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; flex-direction: column; gap: 6px; }
+.topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.icon-btn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; flex: none; }
+.icon-btn:hover { color: var(--ink); border-color: var(--muted); }
+.icon-btn .material-symbols-outlined { font-size: 18px; line-height: 1; width: 18px; overflow: hidden; }
+.status { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--muted); }
+.status strong { color: var(--rescue); font-size: 1.05rem; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.section { display: flex; flex-direction: column; gap: 12px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 2px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--k); flex: none; }
+.chip[aria-pressed="true"] { border-color: var(--k); background: var(--k-soft); }
+
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
+input, select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
+textarea { min-height: 64px; resize: vertical; }
+.timefield { display: flex; gap: 8px; }
+.timefield input { flex: 1; min-width: 0; }
+.ghost { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 8px 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.primary { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 14px; font-weight: 700; font-size: 1.05rem; }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg { min-height: 1.5em; color: var(--muted); font-size: 0.9rem; margin: 0; }
+.msg.ok { color: var(--controller); }
+.msg.err { color: var(--rescue); }
+
+.week { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat { border-radius: 12px; padding: 12px 14px; background: var(--k-soft); display: flex; flex-direction: column; gap: 2px; }
+.stat .big { font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--k); line-height: 1.1; }
+.stat .lbl { font-size: 0.85rem; color: var(--ink); }
+.chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.legend { display: flex; gap: 14px; font-size: 0.8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--k); display: inline-block; }
+.bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 108px; padding-top: 4px; border-bottom: 1px solid var(--line); }
+.bar { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; min-width: 0; }
+.pair { display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 100%; }
+.cwrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; max-width: 18px; }
+.cwrap b { font-size: 0.7rem; font-weight: 700; color: var(--k); line-height: 1; min-height: 0.7rem; }
+.col { width: 100%; border-radius: 4px 4px 1px 1px; background: var(--k); }
+.col.zero { background: var(--line); }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 4px; }
+.days span { font-size: 0.72rem; color: var(--muted); text-align: center; }
+
+.day { display: flex; flex-direction: column; gap: 4px; }
+.day h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.entry { display: grid; grid-template-columns: 4.5rem 1fr auto; gap: 10px; align-items: start; padding: 8px 0; }
+.entry .t { font-weight: 700; padding-top: 1px; }
+.entry .what { min-width: 0; }
+.entry .name { font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tag { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--k); background: var(--k-soft); border-radius: 6px; padding: 1px 7px; }
+.entry .sub { color: var(--muted); font-size: 0.92rem; overflow-wrap: anywhere; }
+.del { border: 0; background: transparent; color: var(--muted); font-size: 0.85rem; padding: 4px 6px; border-radius: 8px; }
+.del.armed { color: var(--rescue); font-weight: 700; background: var(--rescue-soft); }
+
+.medlist { display: flex; flex-direction: column; gap: 8px; }
+.med { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.med .info { min-width: 0; display: flex; flex-direction: column; }
+.empty { color: var(--muted); margin: 0; }
+.k-rescue { --k: var(--rescue); --k-soft: var(--rescue-soft); }
+.k-controller { --k: var(--controller); --k-soft: var(--controller-soft); }
+.k-nebulizer { --k: var(--neb); --k-soft: var(--neb-soft); }
+.k-oral { --k: var(--oral); --k-soft: var(--oral-soft); }
+.k-other { --k: var(--other); --k-soft: var(--other-soft); }
+.banner { padding: 12px 14px; border-radius: 12px; background: var(--other-soft); color: var(--ink); }
+.next { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.nextcard { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nextcard .name { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.nextcard .when { font-family: var(--display); font-weight: 800; font-size: 1.6rem; line-height: 1.15; }
+.nextcard .sub { color: var(--muted); font-size: 0.9rem; }
+.nextcard.ready .when { color: var(--controller); }
+.nextcard.wait .when { color: var(--ink); }
+.pill { display: inline-block; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; width: fit-content; }
+.pill.ready { background: var(--controller-soft); color: var(--controller); }
+.pill.wait { background: var(--rescue-soft); color: var(--rescue); }
+.fineprint { color: var(--muted); font-size: 0.82rem; margin: 0; }
+.slots { display: flex; gap: 8px; flex-wrap: wrap; }
+.slot { font-size: 0.85rem; font-weight: 700; border-radius: 8px; padding: 4px 10px; background: var(--bg); color: var(--muted); border: 1px dashed var(--line); }
+.slot.done { background: var(--controller-soft); color: var(--controller); border: 1px solid transparent; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; margin-bottom: -6px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); font-weight: 700; padding: 10px 6px; border-radius: 10px; min-height: 44px; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.tabs button:not([aria-selected="true"]):hover { color: var(--ink); background: var(--bg); }
+.tabpanel { display: flex; flex-direction: column; gap: 22px; }
+.medspanel { gap: 0; }
+.medspanel > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -18px; padding: 18px; border-radius: var(--radius); }
+.medspanel > summary::-webkit-details-marker { display: none; }
+.sumright { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.9rem; }
+.chev { font-size: 22px; line-height: 1; width: 22px; overflow: hidden; }
+.medspanel[open] .chev { transform: rotate(180deg); }
+.medsbody { display: flex; flex-direction: column; gap: 18px; padding-top: 22px; }
+.addform { border-top: 1px solid var(--line); padding-top: 16px; }
+.addh { margin: 0; font-size: 1rem; font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) { .chip, .primary, .del { transition: background .15s, border-color .15s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="topline">
+      <div class="eyebrow">Medication log</div>
+      <button id="theme" type="button" class="icon-btn" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+    </div>
+    <h1>Zoe's Asthma Log</h1>
+    <div class="status" id="status"><span>Loading her doses…</span></div>
+  </header>
+
+  <div class="banner" id="offline" hidden>Couldn't connect to the log. Check your internet connection and reload.</div>
+
+  <section class="panel signin" id="signin" hidden>
+    <h2>Sign in to open Zoe's log</h2>
+    <p>Use a Google account that's been approved for this log. Doses sync between everyone who signs in.</p>
+    <button class="gbtn" id="signInBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Sign in with Google</button>
+    <p class="msg" id="signinMsg" role="status"></p>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="t-log" aria-controls="tab-log" aria-selected="true">Log Dose</button>
+    <button type="button" role="tab" id="t-history" aria-controls="tab-history" aria-selected="false" tabindex="-1">History</button>
+    <button type="button" role="tab" id="t-meds" aria-controls="tab-meds" aria-selected="false" tabindex="-1">Medications</button>
+  </div>
+
+  <div class="tabpanel" id="tab-log" role="tabpanel" aria-labelledby="t-log">
+  <section class="section" aria-labelledby="nextH" id="nextSec" hidden>
+    <h2 id="nextH">Next dose</h2>
+    <div class="next" id="next"></div>
+    <p class="fineprint">Times are based on the spacing you set for each medication. If she's having trouble breathing, follow her asthma action plan or call her doctor.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="logH">
+    <h2 id="logH">Log a dose</h2>
+    <div class="field">
+      <label>Medication</label>
+      <div class="chips" id="medChips"></div>
+      <p class="empty" id="noMeds" hidden>Add Zoe's medications in the Medications tab first, then they'll show up here as quick buttons.</p>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="dose">Amount</label>
+        <input id="dose" placeholder="e.g. 2 puffs" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="when">Time given</label>
+        <div class="timefield">
+          <input id="when" type="datetime-local">
+          <button class="ghost" id="nowBtn" type="button">Now</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="note">Note (optional)</label>
+      <textarea id="note" placeholder="Why, or how she was doing — e.g. coughing after soccer"></textarea>
+    </div>
+    <button class="primary" id="saveBtn" type="button" disabled>Save dose</button>
+    <p class="msg" id="msg" role="status"></p>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="tab-history" role="tabpanel" aria-labelledby="t-history" hidden>
+
+  <section class="section" aria-labelledby="weekH">
+    <div class="section-head">
+      <h2 id="weekH">Last 7 days</h2>
+      <button class="ghost" id="copyBtn" type="button">Copy 30-day summary</button>
+    </div>
+    <div class="week" id="week"></div>
+    <div>
+      <div class="chart-head">
+        <div class="eyebrow">Doses per day</div>
+        <div class="legend"><span class="k-rescue"><i></i>Rescue</span><span class="k-controller"><i></i>Controller</span></div>
+      </div>
+      <div class="bars" id="bars" role="img" aria-label="Rescue and controller doses per day, last 7 days"></div>
+      <div class="days" id="days"></div>
+    </div>
+    <p class="msg" id="copyMsg" role="status"></p>
+  </section>
+
+  <section class="section" aria-labelledby="histH">
+    <h2 id="histH">History</h2>
+    <div id="history"><p class="empty">Doses you save will show up here, newest first.</p></div>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="tab-meds" role="tabpanel" aria-labelledby="t-meds" hidden>
+
+  <section class="panel" aria-labelledby="medsH">
+    <div class="section-head"><h2 id="medsH">Her medications</h2><span id="medCount" class="num sumright"></span></div>
+    <div class="medlist" id="medList"></div>
+      <div class="section addform">
+        <h3 class="addh">Add a medication</h3>
+        <div class="field">
+          <label for="mName">Name</label>
+          <input id="mName" placeholder="e.g. Albuterol inhaler" autocomplete="off">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="mKind">Type</label>
+            <select id="mKind">
+              <option value="rescue">Rescue (quick relief)</option>
+              <option value="controller">Controller (daily)</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="mDelivery">Given by</label>
+            <select id="mDelivery">
+              <option value="inhaler">Inhaler</option>
+              <option value="nebulizer">Nebulizer</option>
+              <option value="oral">Pill / liquid</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="mDose">Usual amount</label>
+          <input id="mDose" placeholder="e.g. 2 puffs" autocomplete="off">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="mSched">How often</label>
+            <select id="mSched">
+              <option value="">As needed</option>
+              <option value="twice">Twice a day (morning &amp; night)</option>
+              <option value="once">Once a day</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="mHours">Hours between doses (optional)</label>
+            <input id="mHours" type="number" inputmode="decimal" min="0" step="0.5" placeholder="e.g. 4">
+          </div>
+        </div>
+        <button class="primary" id="addMedBtn" type="button">Add medication</button>
+        <p class="msg" id="medMsg" role="status"></p>
+      </div>
+  </section>
+
+  <section class="panel" aria-labelledby="syncH">
+    <h2 id="syncH">Sync &amp; backup</h2>
+    <div class="acct" id="acct"></div>
+    <div class="btnrow">
+      <button class="ghost" id="exportBtn" type="button">Copy backup</button>
+      <button class="ghost" id="importToggle" type="button">Import backup</button>
+    </div>
+    <div class="section" id="importBox" hidden>
+      <div class="field">
+        <label for="importText">Paste a backup</label>
+        <textarea id="importText" placeholder='{"meds": [...], "doses": [...]}'></textarea>
+      </div>
+      <button class="primary" id="importBtn" type="button">Import into the log</button>
+    </div>
+    <p class="msg" id="syncMsg" role="status"></p>
+  </section>
+  </div>
+</div>
+
+<script>
+const KIND_LABEL = { rescue: "Rescue", controller: "Controller", nebulizer: "Nebulizer", oral: "Oral", other: "Other" };
+const DELIVERY_LABEL = { inhaler: "Inhaler", nebulizer: "Nebulizer", oral: "Pill / liquid", other: "" };
+const $ = (id) => document.getElementById(id);
+let db = null, canWrite = true; // db: Firestore or on-device adapter
+let meds = [], doses = [], selectedMed = null, armedDel = null;
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function toLocalInput(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+function setNow() { $("when").value = toLocalInput(new Date()); }
+function fmtTime(ms) { return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+function dayKey(ms) { const d = new Date(ms); return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(); }
+function dayLabel(ms) {
+  const d = new Date(ms), t = new Date();
+  const y = new Date(); y.setDate(t.getDate() - 1);
+  if (dayKey(ms) === dayKey(t.getTime())) return "Today";
+  if (dayKey(ms) === dayKey(y.getTime())) return "Yesterday";
+  return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+}
+function ago(ms) {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 1) return "just now";
+  if (m < 60) return m + " min ago";
+  const h = Math.floor(m / 60), r = m % 60;
+  if (h < 24) return h + "h " + (r ? r + "m " : "") + "ago";
+  const d = Math.floor(h / 24);
+  return d + (d === 1 ? " day" : " days") + " ago";
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function setMsg(id, text, kind) { const m = $(id); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); }
+
+function renderStatus() {
+  const s = $("status"); s.replaceChildren();
+  const rescue = doses.find(d => d.kind === "rescue");
+  const last = doses[0];
+  if (!doses.length) { s.append(el("span", null, "No doses logged yet.")); return; }
+  if (rescue) { s.append(el("span", null, "Last rescue dose"), el("strong", "num", ago(rescue.at))); }
+  else { s.append(el("span", null, "No rescue doses logged.")); }
+  if (last && last !== rescue) s.append(el("span", null, "· last of any kind " + ago(last.at)));
+}
+
+function renderChips() {
+  const c = $("medChips"); c.replaceChildren();
+  $("noMeds").hidden = meds.length > 0;
+  meds.forEach(m => {
+    const b = el("button", "chip k-" + m.kind); b.type = "button";
+    b.setAttribute("aria-pressed", selectedMed === m.id ? "true" : "false");
+    b.append(el("span", "dot"), document.createTextNode(m.name));
+    b.addEventListener("click", () => {
+      selectedMed = m.id;
+      if (m.dose) $("dose").value = m.dose;
+      renderChips(); updateSave(); showSpacing();
+    });
+    c.append(b);
+  });
+}
+
+function updateSave() { $("saveBtn").disabled = !db || !canWrite || !meds.some(m => m.id === selectedMed) || !$("when").value; }
+
+function renderWeek() {
+  const now = new Date(); const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6);
+  const recent = doses.filter(d => d.at >= start.getTime());
+  const counts = { rescue: 0, controller: 0, nebulizer: 0, oral: 0, other: 0 };
+  recent.forEach(d => { counts[d.kind] = (counts[d.kind] || 0) + 1; });
+  const w = $("week"); w.replaceChildren();
+  const kinds = ["rescue", "controller"].concat(["nebulizer", "oral", "other"].filter(k => counts[k]));
+  kinds.forEach(k => {
+    const s = el("div", "stat k-" + k);
+    s.append(el("div", "big num", String(counts[k])), el("div", "lbl", KIND_LABEL[k] + (counts[k] === 1 ? " dose" : " doses")));
+    w.append(s);
+  });
+  const perDay = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const key = dayKey(d.getTime());
+    const day = recent.filter(x => dayKey(x.at) === key);
+    perDay.push({ d, r: day.filter(x => x.kind === "rescue").length, c: day.filter(x => x.kind === "controller").length });
+  }
+  const max = Math.max(1, ...perDay.map(p => Math.max(p.r, p.c)));
+  const b = $("bars"), ds = $("days"); b.replaceChildren(); ds.replaceChildren();
+  const colFor = (n, kind, label) => {
+    const w = el("div", "cwrap k-" + kind);
+    const col = el("div", "col" + (n ? "" : " zero"));
+    col.style.height = (n ? Math.max(6, (n / max) * 80) : 2) + "px";
+    col.title = n + " " + label;
+    w.append(el("b", "num", n ? String(n) : ""), col);
+    return w;
+  };
+  perDay.forEach(p => {
+    const bar = el("div", "bar"), pair = el("div", "pair");
+    pair.append(colFor(p.r, "rescue", "rescue"), colFor(p.c, "controller", "controller"));
+    bar.append(pair); b.append(bar);
+    ds.append(el("span", null, p.d.toLocaleDateString([], { weekday: "short" }).slice(0, 2)));
+  });
+}
+
+function renderHistory() {
+  const h = $("history"); h.replaceChildren();
+  if (!doses.length) { h.append(el("p", "empty", "Doses you save will show up here, newest first.")); return; }
+  let curKey = null, group = null;
+  doses.slice(0, 200).forEach(d => {
+    const k = dayKey(d.at);
+    if (k !== curKey) { curKey = k; group = el("div", "day"); group.append(el("h3", null, dayLabel(d.at))); h.append(group); }
+    const row = el("div", "entry k-" + d.kind);
+    row.append(el("div", "t num", fmtTime(d.at)));
+    const what = el("div", "what");
+    const nm = el("div", "name"); nm.append(document.createTextNode(d.name), el("span", "tag", KIND_LABEL[d.kind] || "Other"));
+    what.append(nm);
+    const subText = [d.dose, d.note].filter(Boolean).join(" · ");
+    if (subText) what.append(el("div", "sub", subText));
+    row.append(what);
+    if (db && canWrite) {
+      const del = el("button", "del" + (armedDel === d.id ? " armed" : ""), armedDel === d.id ? "Tap to delete" : "Delete");
+      del.type = "button";
+      del.addEventListener("click", async () => {
+        if (armedDel !== d.id) { armedDel = d.id; renderHistory(); return; }
+        armedDel = null;
+        try { await db.collection("doses").doc(d.id).delete(); } catch (e) { setMsg("msg", "Couldn't delete that dose. Try again.", "err"); }
+      });
+      row.append(del);
+    }
+    group.append(row);
+  });
+  const extra = doses.length - 200;
+  if (extra > 0) h.append(el("p", "empty", extra + " older doses are saved but not shown."));
+}
+
+function renderMeds() {
+  const l = $("medList"); l.replaceChildren();
+  $("medCount").textContent = meds.length ? meds.length + (meds.length === 1 ? " medication" : " medications") : "";
+  if (!meds.length) { l.append(el("p", "empty", "No medications yet. Add her rescue inhaler and any daily medication so you can log them with one tap.")); return; }
+  meds.forEach(m => {
+    const row = el("div", "med k-" + m.kind);
+    const info = el("div", "info");
+    const nm = el("div", "name"); nm.style.fontWeight = "700"; nm.style.display = "flex"; nm.style.gap = "8px"; nm.style.alignItems = "center"; nm.style.flexWrap = "wrap";
+    nm.append(document.createTextNode(m.name), el("span", "tag", KIND_LABEL[m.kind]));
+    info.append(nm);
+    const sched = m.schedule === "twice" ? "morning & night" : m.schedule === "once" ? "once a day" : "";
+    const subLine = [DELIVERY_LABEL[m.delivery] || "", m.dose ? "Usual: " + m.dose : "", sched].filter(Boolean).join(" · ");
+    if (subLine) info.append(el("span", "sub", subLine));
+    row.append(info);
+    if (db && canWrite) {
+      const rm = el("button", "del" + (armedDel === "m:" + m.id ? " armed" : ""), armedDel === "m:" + m.id ? "Tap to remove" : "Remove");
+      rm.type = "button";
+      rm.addEventListener("click", async () => {
+        if (armedDel !== "m:" + m.id) { armedDel = "m:" + m.id; renderMeds(); return; }
+        armedDel = null;
+        const next = meds.filter(x => x.id !== m.id);
+        try { await db.doc("config/meds").set({ items: next }); if (selectedMed === m.id) selectedMed = null; }
+        catch (e) { setMsg("medMsg", "Couldn't remove it. Try again.", "err"); }
+      });
+      row.append(rm);
+    }
+    l.append(row);
+  });
+}
+
+function lastDoseOf(m) { return doses.find(d => d.medId === m.id || (!d.medId && d.name === m.name)); }
+function untilText(ms) {
+  const m = Math.max(1, Math.ceil(ms / 60000));
+  if (m < 60) return "in " + m + " min";
+  const h = Math.floor(m / 60), r = m % 60;
+  return "in " + h + "h" + (r ? " " + r + "m" : "");
+}
+function clockWithDay(ms) {
+  const lbl = dayLabel(ms);
+  const t = fmtTime(ms);
+  if (lbl === "Today") return t;
+  const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
+  if (dayKey(ms) === dayKey(tmr.getTime())) return "Tomorrow " + t;
+  return new Date(ms).toLocaleDateString([], { weekday: "short" }) + " " + t;
+}
+function renderNext() {
+  const box = $("next"); box.replaceChildren();
+  $("nextSec").hidden = !meds.length;
+  meds.forEach(m => {
+    const last = lastDoseOf(m);
+    const h = Number(m.intervalH) || 0;
+    const card = el("div", "nextcard k-" + m.kind);
+    const nm = el("div", "name"); nm.append(document.createTextNode(m.name), el("span", "tag", KIND_LABEL[m.kind]));
+    card.append(nm);
+    if (!last && !m.schedule) {
+      card.append(el("div", "sub", "No doses logged yet."));
+    } else if (m.schedule === "twice" || m.schedule === "once") {
+      const now = new Date(), todayK = dayKey(now.getTime());
+      const today = doses.filter(d => (d.medId === m.id || (!d.medId && d.name === m.name)) && dayKey(d.at) === todayK);
+      const am = today.some(d => new Date(d.at).getHours() < 12);
+      const pm = today.some(d => new Date(d.at).getHours() >= 12);
+      let pill, when;
+      if (m.schedule === "once") {
+        const done = today.length > 0;
+        pill = done ? ["ready", "Done today"] : ["wait", "Due today"];
+        when = done ? "Tomorrow" : "Today";
+      } else {
+        const morning = now.getHours() < 12;
+        if (am && pm) { pill = ["ready", "Both done today"]; when = "Tomorrow morning"; }
+        else if (morning && !am) { pill = ["wait", "Due"]; when = "This morning"; }
+        else if (!pm) { pill = ["wait", morning ? "Morning done" : (am ? "Morning done" : "Morning missed")]; when = "Tonight"; }
+        else { pill = ["ready", "Night done"]; when = "Tomorrow morning"; }
+      }
+      card.append(el("span", "pill " + pill[0], pill[1]));
+      card.append(el("div", "when", when));
+      if (m.schedule === "twice") {
+        const slots = el("div", "slots");
+        slots.append(el("span", "slot" + (am ? " done" : ""), (am ? "✓ " : "") + "Morning"), el("span", "slot" + (pm ? " done" : ""), (pm ? "✓ " : "") + "Night"));
+        card.append(slots);
+      }
+      if (last) card.append(el("div", "sub", "Last given " + clockWithDay(last.at)));
+    } else if (!h) {
+      card.append(el("div", "sub", "Last given " + clockWithDay(last.at) + " (" + ago(last.at) + ")"), el("div", "sub", "No spacing set for this medication."));
+    } else {
+      const next = last.at + h * 3600000, wait = next - Date.now();
+      card.classList.add(wait > 0 ? "wait" : "ready");
+      card.append(el("span", "pill " + (wait > 0 ? "wait" : "ready"), wait > 0 ? "Too soon" : "OK to give"));
+      card.append(el("div", "when num", wait > 0 ? clockWithDay(next) : "Now"));
+      card.append(el("div", "sub", (wait > 0 ? untilText(wait) + " · " : "") + "last given " + clockWithDay(last.at)));
+    }
+    box.append(card);
+  });
+}
+function checkSpacing() {
+  const m = meds.find(x => x.id === selectedMed);
+  const at = new Date($("when").value).getTime();
+  const h = m ? Number(m.intervalH) || 0 : 0;
+  if (!m || !h || !isFinite(at)) return "";
+  const prev = doses.find(d => (d.medId === m.id || (!d.medId && d.name === m.name)) && d.at <= at);
+  if (!prev) return "";
+  const gap = at - prev.at;
+  if (gap >= h * 3600000) return "";
+  return "Heads up: that's " + Math.round(gap / 60000) + " min after her last " + m.name.split(" ")[0] + " dose (" + fmtTime(prev.at) + "). Her spacing is " + h + " hours.";
+}
+function showSpacing() { const w = checkSpacing(); if (w) setMsg("msg", w, "err"); else if ($("msg").classList.contains("err")) setMsg("msg", ""); }
+
+function renderAll() { renderStatus(); renderNext(); renderChips(); renderWeek(); renderHistory(); renderMeds(); updateSave(); }
+
+$("nowBtn").addEventListener("click", () => { setNow(); updateSave(); showSpacing(); });
+$("when").addEventListener("input", () => { updateSave(); showSpacing(); });
+
+$("saveBtn").addEventListener("click", async () => {
+  const m = meds.find(x => x.id === selectedMed);
+  const at = new Date($("when").value).getTime();
+  if (!m || !isFinite(at)) return;
+  $("saveBtn").disabled = true;
+  try {
+    await db.collection("doses").add({ medId: m.id, name: m.name, kind: m.kind, dose: $("dose").value.trim(), note: $("note").value.trim(), at, loggedAt: Date.now() });
+    setMsg("msg", "Saved: " + m.name + " at " + fmtTime(at) + ".", "ok");
+    $("note").value = ""; setNow();
+  } catch (e) {
+    setMsg("msg", e && e.code === "quota_exceeded" ? "The log is full. Delete some old doses, then save again." : "Couldn't save. Check your connection and tap Save again.", "err");
+  }
+  updateSave();
+});
+
+$("addMedBtn").addEventListener("click", async () => {
+  const name = $("mName").value.trim();
+  if (!name) { setMsg("medMsg", "Give the medication a name.", "err"); return; }
+  if (!db || !canWrite) { setMsg("medMsg", "Saving isn't available in this view.", "err"); return; }
+  const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, delivery: $("mDelivery").value, dose: $("mDose").value.trim() };
+  const hrs = parseFloat($("mHours").value);
+  if (hrs > 0) item.intervalH = hrs;
+  if ($("mSched").value) item.schedule = $("mSched").value;
+  try {
+    await db.doc("config/meds").set({ items: meds.concat([item]) });
+    $("mName").value = ""; $("mDose").value = ""; $("mHours").value = ""; $("mSched").value = "";
+    selectedMed = item.id; if (item.dose) $("dose").value = item.dose;
+    setMsg("medMsg", "Added " + name + ".", "ok");
+  } catch (e) { setMsg("medMsg", "Couldn't add it. Try again.", "err"); }
+});
+
+$("copyBtn").addEventListener("click", async () => {
+  const since = Date.now() - 30 * 864e5;
+  const list = doses.filter(d => d.at >= since).slice().reverse();
+  const rescue = list.filter(d => d.kind === "rescue").length;
+  const lines = ["Zoe — asthma medication log, last 30 days", "Rescue doses: " + rescue + "  ·  Total doses: " + list.length, ""];
+  list.forEach(d => lines.push(new Date(d.at).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + fmtTime(d.at) + " — " + d.name + (d.dose ? " (" + d.dose + ")" : "") + (d.note ? " — " + d.note : "")));
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); setMsg("copyMsg", "Copied. Paste it into a message or a note for her doctor.", "ok"); }
+  catch (e) {
+    const ta = el("textarea"); ta.value = text; ta.setAttribute("aria-label", "30-day summary"); ta.style.minHeight = "160px";
+    $("copyMsg").replaceChildren(ta); ta.focus(); ta.select();
+  }
+});
+
+const SUN = '<span class="material-symbols-outlined" aria-hidden="true">light_mode</span>';
+const MOON = '<span class="material-symbols-outlined" aria-hidden="true">dark_mode</span>';
+const themeBtn = $("theme"), rootEl = document.documentElement;
+const isDark = () => rootEl.dataset.theme ? rootEl.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+function paintTheme() { const d = isDark(); themeBtn.innerHTML = d ? SUN : MOON; const l = d ? "Switch to light mode" : "Switch to dark mode"; themeBtn.setAttribute("aria-label", l); themeBtn.title = l; }
+let savedTheme = null; try { savedTheme = localStorage.getItem("zoe-meds-theme"); } catch (_) {}
+rootEl.dataset.theme = savedTheme === "dark" ? "dark" : "light";
+paintTheme();
+themeBtn.addEventListener("click", () => { const next = isDark() ? "light" : "dark"; rootEl.dataset.theme = next; try { localStorage.setItem("zoe-meds-theme", next); } catch (_) {} paintTheme(); });
+
+const TABS = ["log", "history", "meds"];
+function showTab(name, focus) {
+  TABS.forEach(t => {
+    const on = t === name, b = $("t-" + t);
+    b.setAttribute("aria-selected", on ? "true" : "false"); b.tabIndex = on ? 0 : -1;
+    $("tab-" + t).hidden = !on;
+    if (on && focus) b.focus();
+  });
+  try { localStorage.setItem("zoe-meds-tab", name); } catch (_) {}
+}
+TABS.forEach((t, i) => {
+  const b = $("t-" + t);
+  b.addEventListener("click", () => showTab(t));
+  b.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); showTab(TABS[(i + (e.key === "ArrowRight" ? 1 : 2)) % 3], true); }
+  });
+});
+let savedTab = null; try { savedTab = localStorage.getItem("zoe-meds-tab"); } catch (_) {}
+showTab(TABS.includes(savedTab) ? savedTab : "log");
+
+setNow();
+renderAll();
+setInterval(() => { renderStatus(); renderNext(); }, 30000);
+
+// ---------- Storage adapters (same small API for both) ----------
+function makeLocalDb() {
+  const KEY = "zoe-asthma-log-v1";
+  let state = { meds: null, doses: {} };
+  try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch (_) {}
+  const L = { meds: [], doses: [] };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} };
+  const emitMeds = () => L.meds.forEach(cb => cb({ exists: !!state.meds, data: () => state.meds }));
+  const emitDoses = () => {
+    const docs = Object.entries(state.doses).map(([id, v]) => ({ id, data: () => v })).sort((a, b) => b.data().at - a.data().at);
+    L.doses.forEach(cb => cb({ docs }));
+  };
+  return {
+    doc() { return { set: async v => { state.meds = v; save(); emitMeds(); }, onSnapshot(cb) { L.meds.push(cb); setTimeout(emitMeds, 0); return () => {}; } }; },
+    collection() {
+      const api = {
+        add: async v => { state.doses["d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)] = v; save(); emitDoses(); },
+        doc: id => ({ delete: async () => { delete state.doses[id]; save(); emitDoses(); }, set: async v => { state.doses[id] = v; save(); emitDoses(); } }),
+        orderBy: () => api, limit: () => api,
+        onSnapshot(cb) { L.doses.push(cb); setTimeout(emitDoses, 0); return () => {}; }
+      };
+      return api;
+    }
+  };
+}
+function makeFireDb(fs, store) {
+  return {
+    doc(path) {
+      const ref = fs.doc(store, path);
+      return { set: v => fs.setDoc(ref, v), onSnapshot: (cb, err) => fs.onSnapshot(ref, s => cb({ exists: s.exists(), data: () => s.data() }), err) };
+    },
+    collection(name) {
+      const col = fs.collection(store, name); let q = col;
+      const api = {
+        add: v => fs.addDoc(col, v),
+        doc: id => ({ delete: () => fs.deleteDoc(fs.doc(store, name, id)), set: v => fs.setDoc(fs.doc(store, name, id), v) }),
+        orderBy: (f, d) => { q = fs.query(q, fs.orderBy(f, d)); return api; },
+        limit: n => { q = fs.query(q, fs.limit(n)); return api; },
+        onSnapshot: (cb, err) => fs.onSnapshot(q, s => cb({ docs: s.docs.map(d => ({ id: d.id, data: () => d.data() })) }), err)
+      };
+      return api;
+    }
+  };
+}
+
+let unsubs = [];
+function stopListening() { unsubs.forEach(u => { try { u(); } catch (_) {} }); unsubs = []; }
+function listen(onDenied) {
+  stopListening();
+  const fail = (which) => (e) => {
+    if (e && e.code === "permission-denied") return onDenied && onDenied();
+    setMsg(which, "Lost connection to the log. Reload the page.", "err");
+  };
+  unsubs.push(db.doc("config/meds").onSnapshot(s => {
+    const d = s.exists ? s.data() : null;
+    meds = d && Array.isArray(d.items) ? d.items : [];
+    if (selectedMed && !meds.some(m => m.id === selectedMed)) selectedMed = null;
+    if (!selectedMed && meds.length === 1) { selectedMed = meds[0].id; if (meds[0].dose && !$("dose").value) $("dose").value = meds[0].dose; }
+    renderAll();
+  }, fail("medMsg")));
+  unsubs.push(db.collection("doses").orderBy("at", "desc").limit(1000).onSnapshot(s => {
+    doses = s.docs.map(x => Object.assign({ id: x.id }, x.data()));
+    renderAll();
+  }, fail("msg")));
+}
+function setAcct(parts) { const a = $("acct"); a.replaceChildren(...parts); }
+const wrapEl = document.querySelector(".wrap");
+
+// ---------- Backup ----------
+$("exportBtn").addEventListener("click", async () => {
+  const text = JSON.stringify({ app: "zoe-asthma-log", exported: new Date().toISOString(), meds, doses }, null, 1);
+  try { await navigator.clipboard.writeText(text); setMsg("syncMsg", "Backup copied. Paste it somewhere safe, like a note or email to yourself.", "ok"); }
+  catch (e) { const ta = el("textarea"); ta.value = text; ta.style.minHeight = "140px"; $("syncMsg").replaceChildren(ta); ta.select(); }
+});
+$("importToggle").addEventListener("click", () => { $("importBox").hidden = !$("importBox").hidden; });
+$("importBtn").addEventListener("click", async () => {
+  if (!db) { setMsg("syncMsg", "Sign in first, then import.", "err"); return; }
+  let data;
+  try { data = JSON.parse($("importText").value); } catch (e) { setMsg("syncMsg", "That doesn't look like a backup. Paste the whole thing, including the { } at the start and end.", "err"); return; }
+  const inMeds = Array.isArray(data.meds) ? data.meds : [], inDoses = Array.isArray(data.doses) ? data.doses : [];
+  const byId = new Map(meds.map(m => [m.id, m])); inMeds.forEach(m => m && m.id && byId.set(m.id, m));
+  try {
+    await db.doc("config/meds").set({ items: [...byId.values()] });
+    for (const d of inDoses) {
+      if (!d || !isFinite(d.at)) continue;
+      const { id, ...rest } = d;
+      await db.collection("doses").doc(id || ("d" + d.at)).set(rest);
+    }
+    $("importText").value = ""; $("importBox").hidden = true;
+    setMsg("syncMsg", "Imported " + inMeds.length + " medications and " + inDoses.length + " doses.", "ok");
+  } catch (e) { setMsg("syncMsg", "Import stopped partway. Check your connection and import again; doses already added won't be duplicated.", "err"); }
+});
+
+// ---------- Start ----------
+(async () => {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey) {
+    db = makeLocalDb();
+    setAcct([el("span", null, "Saving on this device only. Set up Firebase (see the README) to sync between phones.")]);
+    listen();
+    return;
+  }
+  const V = "10.12.2", base = "https://www.gstatic.com/firebasejs/" + V + "/";
+  let appMod, authMod, fs;
+  try {
+    [appMod, authMod, fs] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js")]);
+  } catch (e) {
+    $("offline").textContent = "Couldn't load the sync service. Check your internet connection and reload.";
+    $("offline").hidden = false; return;
+  }
+  const app = appMod.initializeApp(cfg);
+  let store;
+  try { store = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() }); } catch (e) { store = fs.getFirestore(app); }
+  const auth = authMod.getAuth(app);
+  const provider = new authMod.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  $("signInBtn").addEventListener("click", async () => {
+    setMsg("signinMsg", "");
+    try { await authMod.signInWithPopup(auth, provider); }
+    catch (e) {
+      if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) { authMod.signInWithRedirect(auth, provider); return; }
+      if (e && e.code === "auth/popup-closed-by-user") return;
+      setMsg("signinMsg", "Sign-in didn't finish (" + (e && e.code || "error") + "). Try again.", "err");
+    }
+  });
+  authMod.getRedirectResult(auth).catch(() => {});
+
+  authMod.onAuthStateChanged(auth, user => {
+    stopListening(); meds = []; doses = [];
+    if (!user) {
+      db = null; wrapEl.classList.add("locked"); $("signin").hidden = false;
+      $("status").replaceChildren(el("span", null, "Signed out"));
+      renderAll(); return;
+    }
+    db = makeFireDb(fs, store);
+    wrapEl.classList.remove("locked"); $("signin").hidden = true;
+    const out = el("button", "ghost", "Sign out"); out.type = "button";
+    out.addEventListener("click", () => authMod.signOut(auth));
+    const who = el("span"); who.append("Signed in as ", el("strong", null, user.email || "your account"), " · syncing");
+    setAcct([who, out]);
+    renderAll();
+    listen(() => {
+      stopListening(); db = null; meds = []; doses = [];
+      wrapEl.classList.add("locked"); $("signin").hidden = false;
+      setMsg("signinMsg", (user.email || "This account") + " isn't approved for Zoe's log. Sign in with an approved Google account.", "err");
+      authMod.signOut(auth);
+    });
+  });
+})();
+</script>
+</body>
+</html>
