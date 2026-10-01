@@ -527,7 +527,7 @@ function renderNext() {
     const last = lastDoseOf(m);
     const h = Number(m.intervalH) || 0;
     const card = el("div", "nextcard k-" + m.kind);
-    const nm = el("div", "name"); nm.append(document.createTextNode(m.name), el("span", "tag", KIND_LABEL[m.kind]));
+    const nm = el("div", "name"); nm.append(document.createTextNode(m.name));
     card.append(nm);
     if (!last && !m.schedule) {
       card.append(el("div", "sub", "No doses logged yet."));
@@ -543,7 +543,7 @@ function renderNext() {
         when = done ? ["Tomorrow", "Anytime"] : ["Today", "Anytime"];
       } else {
         const morning = now.getHours() < 12;
-        if (am && pm) { pill = ["ready", "Both done today"]; when = ["Tomorrow", "Morning"]; }
+        if (am && pm) { pill = ["ready", "Completed"]; when = ["Tomorrow", "Morning"]; }
         else if (morning && !am) { pill = ["wait", "Due"]; when = ["Today", "Morning"]; }
         else if (!pm) { pill = ["wait", morning ? "Morning done" : (am ? "Morning done" : "Morning missed")]; when = ["Today", "Night"]; }
         else { pill = ["ready", "Night done"]; when = ["Tomorrow", "Morning"]; }
