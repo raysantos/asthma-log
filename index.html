@@ -152,10 +152,12 @@ textarea { min-height: 64px; resize: vertical; }
 .next { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .nextcard { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .nextcard .name { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.nextcard .when { font-family: var(--display); font-weight: 800; font-size: 1.6rem; line-height: 1.15; }
+.nextcard .when { display: flex; flex-direction: column; gap: 0; margin-top: 2px; }
+.nextcard .when .wd { font-weight: 700; font-size: 1rem; color: var(--muted); line-height: 1.2; }
+.nextcard .when .wt { font-family: var(--display); font-weight: 800; font-size: 1.75rem; line-height: 1.1; }
 .nextcard .sub { color: var(--muted); font-size: 0.9rem; }
-.nextcard.ready .when { color: var(--controller); }
-.nextcard.wait .when { color: var(--ink); }
+.nextcard.ready .when .wt { color: var(--controller); }
+.nextcard.wait .when .wt { color: var(--ink); }
 .pill { display: inline-block; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; width: fit-content; }
 .pill.ready { background: var(--controller-soft); color: var(--controller); }
 .pill.wait { background: var(--rescue-soft); color: var(--rescue); }
@@ -349,7 +351,14 @@ let meds = [], doses = [], selectedMed = null, armedDel = null;
 function pad(n) { return String(n).padStart(2, "0"); }
 function toLocalInput(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
 function setNow() { $("when").value = toLocalInput(new Date()); }
-function fmtTime(ms) { return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+function fmtTime(ms) { const d = new Date(ms); const h = d.getHours(); return (h % 12 || 12) + ":" + pad(d.getMinutes()) + (h < 12 ? "am" : "pm"); }
+function dayWord(ms) {
+  const k = dayKey(ms), t = new Date(), tm = new Date(); tm.setDate(t.getDate() + 1);
+  if (k === dayKey(t.getTime())) return "Today";
+  if (k === dayKey(tm.getTime())) return "Tomorrow";
+  return new Date(ms).toLocaleDateString([], { weekday: "long" });
+}
+function whenBlock(day, text) { const w = el("div", "when"); w.append(el("span", "wd", day), el("span", "wt num", text)); return w; }
 function dayKey(ms) { const d = new Date(ms); return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(); }
 function dayLabel(ms) {
   const d = new Date(ms), t = new Date();
@@ -531,16 +540,16 @@ function renderNext() {
       if (m.schedule === "once") {
         const done = today.length > 0;
         pill = done ? ["ready", "Done today"] : ["wait", "Due today"];
-        when = done ? "Tomorrow" : "Today";
+        when = done ? ["Tomorrow", "Anytime"] : ["Today", "Anytime"];
       } else {
         const morning = now.getHours() < 12;
-        if (am && pm) { pill = ["ready", "Both done today"]; when = "Tomorrow morning"; }
-        else if (morning && !am) { pill = ["wait", "Due"]; when = "This morning"; }
-        else if (!pm) { pill = ["wait", morning ? "Morning done" : (am ? "Morning done" : "Morning missed")]; when = "Tonight"; }
-        else { pill = ["ready", "Night done"]; when = "Tomorrow morning"; }
+        if (am && pm) { pill = ["ready", "Both done today"]; when = ["Tomorrow", "Morning"]; }
+        else if (morning && !am) { pill = ["wait", "Due"]; when = ["Today", "Morning"]; }
+        else if (!pm) { pill = ["wait", morning ? "Morning done" : (am ? "Morning done" : "Morning missed")]; when = ["Today", "Night"]; }
+        else { pill = ["ready", "Night done"]; when = ["Tomorrow", "Morning"]; }
       }
       card.append(el("span", "pill " + pill[0], pill[1]));
-      card.append(el("div", "when", when));
+      card.append(whenBlock(when[0], when[1]));
       if (m.schedule === "twice") {
         const slots = el("div", "slots");
         slots.append(el("span", "slot" + (am ? " done" : ""), (am ? "✓ " : "") + "Morning"), el("span", "slot" + (pm ? " done" : ""), (pm ? "✓ " : "") + "Night"));
@@ -553,7 +562,7 @@ function renderNext() {
       const next = last.at + h * 3600000, wait = next - Date.now();
       card.classList.add(wait > 0 ? "wait" : "ready");
       card.append(el("span", "pill " + (wait > 0 ? "wait" : "ready"), wait > 0 ? "Too soon" : "OK to give"));
-      card.append(el("div", "when num", wait > 0 ? clockWithDay(next) : "Now"));
+      card.append(whenBlock(wait > 0 ? dayWord(next) : "Today", wait > 0 ? fmtTime(next) : "Now"));
       card.append(el("div", "sub", (wait > 0 ? untilText(wait) + " · " : "") + "last given " + clockWithDay(last.at)));
     }
     box.append(card);
