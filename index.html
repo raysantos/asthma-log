@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add,add_to_home_screen,dark_mode,expand_more,light_mode&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add,add_to_home_screen,check_circle,dark_mode,expand_more,light_mode&display=block">
 <style>
 /* Layout: one phone-first column — status up top, a big log form, then the week, history, and the medication list. */
 :root {
@@ -66,6 +66,17 @@ img { max-width: 100%; }
 .acct { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
 .acct strong { color: var(--ink); overflow-wrap: anywhere; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.savedbox { border-radius: 12px; padding: 14px 16px; background: var(--controller-soft); display: flex; flex-direction: column; gap: 12px; }
+.savedhead { display: flex; gap: 10px; align-items: flex-start; }
+.savedhead .material-symbols-outlined { color: var(--controller); font-size: 26px; line-height: 1; width: 26px; overflow: hidden; font-variation-settings: "FILL" 1; }
+.savedhead strong { display: block; color: var(--controller); font-size: 1.05rem; }
+.savedhead span#savedSub { color: var(--ink); }
+.savedbox .btnrow .ghost { background: var(--surface); }
+.savedfoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 0.95rem; }
+.chips.cooling .chip { opacity: 0.45; pointer-events: none; }
+.dupbox { border-radius: 12px; padding: 14px 16px; background: var(--rescue-soft); display: flex; flex-direction: column; gap: 10px; }
+.dupbox p { margin: 0; color: var(--ink); }
+.primary.slim { padding: 8px 14px; font-size: 1rem; }
 .lockbox { border-top: 1px dashed var(--line); padding-top: 14px; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
 .wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
@@ -265,8 +276,16 @@ textarea { min-height: 64px; resize: vertical; }
         </div>
       </div>
     </div>
+    <div class="dupbox" id="dupBox" hidden>
+      <p id="dupText"></p>
+      <div class="btnrow"><button class="ghost" id="dupCancel" type="button">Cancel</button><button class="primary slim" id="dupConfirm" type="button">Log it again</button></div>
+    </div>
     <button class="primary" id="saveBtn" type="button" disabled>Save dose</button>
-    <p class="msg" id="msg" role="status"></p>
+    <div class="savedbox" id="savedBox" hidden>
+      <div class="savedhead"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span><div><strong>Dose saved</strong><span id="savedSub"></span></div></div>
+      <div class="savedfoot"><span id="savedNext">Tap a medication to log another.</span><button class="ghost" id="undoBtn" type="button">Undo</button></div>
+    </div>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
   </section>
   </div>
 
@@ -432,18 +451,26 @@ function renderChips() {
     b.setAttribute("aria-pressed", selectedMed === m.id ? "true" : "false");
     b.append(el("span", "dot"), document.createTextNode(m.name));
     b.addEventListener("click", () => {
-      selectedMed = m.id;
+      if (Date.now() < coolUntil) return;              // brief cooldown right after a save
+      selectedMed = m.id; savedId = null; $("dupBox").hidden = true;
       if (m.dose) $("dose").value = m.dose;
+      if ($("msg").classList.contains("ok")) setMsg("msg", "");
       renderChips(); updateSave(); showSpacing();
     });
     c.append(b);
   });
 }
 
+let saving = false, savedId = null, pendingDup = false, coolUntil = 0;
 function updateSave() {
-  $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked; $("lockBtn").hidden = !unlocked; $("syncPanel").hidden = !unlocked;
-  $("saveBtn").disabled = !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
+  const showSaved = !!savedId && unlocked;
+  $("lockBox").hidden = unlocked; $("saveBtn").hidden = !unlocked || showSaved; $("lockBtn").hidden = !unlocked; $("syncPanel").hidden = !unlocked;
+  $("savedBox").hidden = !showSaved;
+  if (showSaved || !unlocked) $("dupBox").hidden = true;
+  $("saveBtn").disabled = saving || !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
+  $("saveBtn").textContent = saving ? "Saving…" : "Save dose";
 }
+function clearSaved() { if (savedId) { savedId = null; updateSave(); } }
 let remoteAuth = null; // set when the shared Firebase log is connected
 async function tryUnlock() {
   const v = $("pw").value;
@@ -641,19 +668,45 @@ function renderAll() { renderStatus(); renderNext(); renderChips(); renderWeek()
 $("nowBtn").addEventListener("click", () => { setNow(); updateSave(); showSpacing(); });
 $("when").addEventListener("input", () => { updateSave(); showSpacing(); });
 
-$("saveBtn").addEventListener("click", async () => {
+function sameMed(d, m) { return d.medId === m.id || (!d.medId && d.name === m.name); }
+async function saveDose(force) {
+  if (saving) return;                                   // ignore extra taps while saving
   const m = meds.find(x => x.id === selectedMed);
   const at = new Date($("when").value).getTime();
   if (!m || !isFinite(at)) return;
-  $("saveBtn").disabled = true;
-  try {
-    await db.collection("doses").add({ medId: m.id, name: m.name, kind: m.kind, dose: $("dose").value.trim(), note: $("note").value.trim(), at, loggedAt: Date.now() });
-    setMsg("msg", "Saved: " + m.name + " at " + fmtTime(at) + ".", "ok");
-    $("note").value = ""; setNow();
-  } catch (e) {
-    setMsg("msg", e && e.code === "quota_exceeded" ? "The log is full. Delete some old doses, then save again." : "Couldn't save. Check your connection and tap Save again.", "err");
+  const near = doses.find(d => sameMed(d, m) && Math.abs(d.at - at) < 10 * 60000);
+  if (near && !force) {                                 // likely a double entry: ask first
+    $("dupText").textContent = m.name + " was already logged at " + fmtTime(near.at) + ". Log it again?";
+    $("dupBox").hidden = false; $("saveBtn").hidden = true; pendingDup = true; return;
   }
-  updateSave();
+  pendingDup = false; $("dupBox").hidden = true;
+  saving = true; updateSave();
+  const id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const amount = $("dose").value.trim();
+  const write = db.collection("doses").doc(id).set({ medId: m.id, name: m.name, kind: m.kind, dose: amount, note: $("note").value.trim(), at, loggedAt: Date.now() });
+  try {
+    // Show the confirmation as soon as it's stored on this phone; syncing can finish in the background.
+    await Promise.race([write, new Promise(r => setTimeout(r, 2500))]);
+    write.catch(() => setMsg("msg", "That dose didn't reach the shared log. Check your connection; it will retry.", "err"));
+    savedId = id;
+    $("savedSub").textContent = [m.name, amount, fmtTime(at)].filter(Boolean).join(" · ");
+    selectedMed = null; $("note").value = ""; $("dose").value = ""; setNow(); setMsg("msg", "");
+    try { navigator.vibrate && navigator.vibrate(25); } catch (_) {}
+    coolUntil = Date.now() + 2000;                      // absorb stray taps, then ready for the next dose
+    $("medChips").classList.add("cooling");
+    setTimeout(() => { $("medChips").classList.remove("cooling"); }, 2000);
+  } catch (e) {
+    setMsg("msg", "Couldn't save. Check your connection and tap Save again.", "err");
+  } finally { saving = false; renderAll(); }
+}
+$("saveBtn").addEventListener("click", () => saveDose(false));
+$("dupConfirm").addEventListener("click", () => saveDose(true));
+$("dupCancel").addEventListener("click", () => { pendingDup = false; $("dupBox").hidden = true; updateSave(); });
+$("undoBtn").addEventListener("click", async () => {
+  const id = savedId; if (!id) return;
+  savedId = null; updateSave();
+  try { await db.collection("doses").doc(id).delete(); setMsg("msg", "Removed that dose.", "ok"); }
+  catch (e) { setMsg("msg", "Couldn't undo. Delete it from History instead.", "err"); }
 });
 
 $("addMedBtn").addEventListener("click", async () => {
