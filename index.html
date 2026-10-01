@@ -755,7 +755,7 @@ function updateFab() {
   const fab = $("fab"); if (!fab) return;
   const onLog = !$("tab-log").hidden;
   const r = $("logPanel").getBoundingClientRect();
-  fab.hidden = onLog && r.top < window.innerHeight - 90 && r.bottom > 120;
+  fab.hidden = !unlocked || (onLog && r.top < window.innerHeight - 90 && r.bottom > 120);  // only for phones that can log
 }
 window.addEventListener("scroll", updateFab, { passive: true });
 window.addEventListener("resize", updateFab);
