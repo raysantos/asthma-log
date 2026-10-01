@@ -435,12 +435,9 @@ function setMsg(id, text, kind) { const m = $(id); m.textContent = text || ""; m
 
 function renderStatus() {
   const s = $("status"); s.replaceChildren();
-  const rescue = doses.find(d => d.kind === "rescue");
-  const last = doses[0];
   if (!doses.length) { s.append(el("span", null, "No doses logged yet.")); return; }
-  if (rescue) { s.append(el("span", null, "Last Dose: " + rescue.name.replace(/\s+(inhaler|nebulizer)$/i, "")), el("strong", "num", ago(rescue.at))); }
-  else { s.append(el("span", null, "No rescue doses logged.")); }
-  if (last && last !== rescue) s.append(el("span", null, "· last of any kind " + ago(last.at)));
+  const last = doses.reduce((a, d) => (d.at > a.at ? d : a), doses[0]);   // most recent dose of any medication
+  s.append(el("span", null, "Last Dose: " + last.name.replace(/\s+(inhaler|nebulizer)$/i, "")), el("strong", "num", ago(last.at)));
 }
 
 function renderChips() {
