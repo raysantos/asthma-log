@@ -18,11 +18,12 @@
 <style>
 /* Layout: one phone-first column — status up top, a big log form, then the week, history, and the medication list. */
 :root {
-  --bg: #eef3f5;
+  --bg: #ffffff;
+  --tabbar: #f3f6f8;
   --surface: #ffffff;
   --ink: #18262e;
   --muted: #5b6d77;
-  --line: #d5e0e5;
+  --line: #dce4e8;
   --accent: #1d6a86;
   --accent-ink: #ffffff;
   --rescue: #b84a32;
@@ -43,7 +44,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #10181d; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
+    --bg: #10181d; --tabbar: #182329; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
     --accent: #5fb3d1; --accent-ink: #0c1a20;
     --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
     --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
@@ -51,7 +52,7 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #10181d; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
+  --bg: #10181d; --tabbar: #182329; --surface: #182329; --ink: #e6eef2; --muted: #95a8b2; --line: #2a3a42;
   --accent: #5fb3d1; --accent-ink: #0c1a20;
   --rescue: #f08a70; --rescue-soft: #3a2420; --controller: #86c493; --controller-soft: #1f3324;
   --neb: #84b5ea; --neb-soft: #1d2c3e; --oral: #c19ce0; --oral-soft: #2d2338; --other: #a3b3bb; --other-soft: #243138;
@@ -179,7 +180,7 @@ textarea { min-height: 64px; resize: vertical; }
 .slots { display: flex; gap: 8px; flex-wrap: wrap; }
 .slot { font-size: 0.85rem; font-weight: 700; border-radius: 8px; padding: 4px 10px; background: var(--bg); color: var(--muted); border: 1px dashed var(--line); }
 .slot.done { background: var(--controller-soft); color: var(--controller); border: 1px solid transparent; }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; margin-bottom: -6px; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--tabbar); border: 1px solid var(--line); border-radius: 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; margin-bottom: -6px; }
 .tabs button { border: 0; background: transparent; color: var(--muted); font-weight: 700; padding: 10px 6px; border-radius: 10px; min-height: 44px; }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
 .tabs button:not([aria-selected="true"]):hover { color: var(--ink); background: var(--bg); }
