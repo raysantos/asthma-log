@@ -646,7 +646,7 @@ function checkSpacing() {
   if (!prev) return "";
   const gap = at - prev.at;
   if (gap >= h * 3600000) return "";
-  return "Heads up: that's " + Math.round(gap / 60000) + " min after the last " + m.name.split(" ")[0] + " dose (" + fmtTime(prev.at) + "). Her spacing is " + h + " hours.";
+  return "Heads up: that's " + Math.round(gap / 60000) + " min after the last " + m.name.split(" ")[0] + " dose (" + fmtTime(prev.at) + "). Spacing is " + h + " hours.";
 }
 function showSpacing() { const w = checkSpacing(); if (w) setMsg("msg", w, "err"); else if ($("msg").classList.contains("err")) setMsg("msg", ""); }
 
