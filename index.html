@@ -323,7 +323,7 @@ textarea { min-height: 64px; resize: vertical; }
         <h3 class="addh">Add a medication</h3>
         <div class="field">
           <label for="mName">Name</label>
-          <input id="mName" placeholder="e.g. Albuterol inhaler" autocomplete="off">
+          <input id="mName" placeholder="e.g. Albuterol 90 mcg" autocomplete="off">
         </div>
         <div class="row">
           <div class="field">
@@ -655,6 +655,8 @@ function renderAll() { renderStatus(); renderNext(); renderChips(); renderWeek()
 $("nowBtn").addEventListener("click", () => { setNow(); updateSave(); showSpacing(); });
 $("when").addEventListener("input", () => { updateSave(); showSpacing(); });
 
+// How a medication is given isn't tracked, so drop "inhaler" / "nebulizer" from names.
+function cleanName(n) { return String(n || "").replace(/\s+(inhaler|nebuli[sz]er)\b/gi, "").trim() || String(n || ""); }
 function sameMed(d, m) { return d.medId === m.id || (!d.medId && d.name === m.name); }
 async function saveDose(force) {
   if (saving) return;                                   // ignore extra taps while saving
@@ -832,14 +834,14 @@ function listen(onDenied) {
   };
   unsubs.push(db.doc("config/meds").onSnapshot(s => {
     const d = s.exists ? s.data() : null;
-    meds = d && Array.isArray(d.items) ? d.items : [];
+    meds = (d && Array.isArray(d.items) ? d.items : []).map(m => Object.assign({}, m, { name: cleanName(m.name) }));
     markMedsReady();
     if (selectedMed && !meds.some(m => m.id === selectedMed)) selectedMed = null;
     if (!selectedMed && meds.length === 1) { selectedMed = meds[0].id; if (meds[0].dose && !$("dose").value) $("dose").value = meds[0].dose; }
     renderAll();
   }, fail("medMsg")));
   unsubs.push(db.collection("doses").orderBy("at", "desc").limit(1000).onSnapshot(s => {
-    doses = s.docs.map(x => Object.assign({ id: x.id }, x.data()));
+    doses = s.docs.map(x => { const v = Object.assign({ id: x.id }, x.data()); v.name = cleanName(v.name); return v; });
     renderAll();
   }, fail("msg")));
 }
