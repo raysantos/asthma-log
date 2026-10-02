@@ -219,7 +219,7 @@ textarea { min-height: 64px; resize: vertical; }
       </div>
     </div>
     <h1>Asthma Log</h1>
-    <div class="status" id="status"><span>Loading her doses…</span></div>
+    <div class="status" id="status"><span>Loading doses…</span></div>
   </header>
 
   <section class="panel installhelp" id="installHelp" hidden aria-labelledby="installH">
@@ -265,7 +265,7 @@ textarea { min-height: 64px; resize: vertical; }
     </div>
     <div class="field">
       <label for="note">Note (optional)</label>
-      <textarea id="note" placeholder="Why, or how she was doing — e.g. coughing after soccer"></textarea>
+      <textarea id="note" placeholder="Why, or how things were — e.g. coughing after soccer"></textarea>
     </div>
     <div class="lockbox" id="lockBox" hidden>
       <div class="field">
@@ -317,7 +317,7 @@ textarea { min-height: 64px; resize: vertical; }
   <div class="tabpanel" id="tab-meds" role="tabpanel" aria-labelledby="t-meds" hidden>
 
   <section class="panel" aria-labelledby="medsH">
-    <div class="section-head"><h2 id="medsH">Her medications</h2><span id="medCount" class="num sumright"></span></div>
+    <div class="section-head"><h2 id="medsH">Medications</h2><span id="medCount" class="num sumright"></span></div>
     <div class="medlist" id="medList"></div>
       <div class="section addform">
         <h3 class="addh">Add a medication</h3>
@@ -552,7 +552,7 @@ function renderHistory() {
 function renderMeds() {
   const l = $("medList"); l.replaceChildren();
   $("medCount").textContent = meds.length ? meds.length + (meds.length === 1 ? " medication" : " medications") : "";
-  if (!meds.length) { l.append(el("p", "empty", "No medications yet. Add her rescue inhaler and any daily medication so you can log them with one tap.")); return; }
+  if (!meds.length) { l.append(el("p", "empty", "No medications yet. Add the rescue inhaler and any daily medication so you can log them with one tap.")); return; }
   meds.forEach(m => {
     const row = el("div", "med k-" + m.kind);
     const info = el("div", "info");
@@ -646,7 +646,7 @@ function checkSpacing() {
   if (!prev) return "";
   const gap = at - prev.at;
   if (gap >= h * 3600000) return "";
-  return "Heads up: that's " + Math.round(gap / 60000) + " min after her last " + m.name.split(" ")[0] + " dose (" + fmtTime(prev.at) + "). Her spacing is " + h + " hours.";
+  return "Heads up: that's " + Math.round(gap / 60000) + " min after the last " + m.name.split(" ")[0] + " dose (" + fmtTime(prev.at) + "). Her spacing is " + h + " hours.";
 }
 function showSpacing() { const w = checkSpacing(); if (w) setMsg("msg", w, "err"); else if ($("msg").classList.contains("err")) setMsg("msg", ""); }
 
@@ -722,7 +722,7 @@ $("copyBtn").addEventListener("click", async () => {
   const lines = ["Asthma medication log, last 30 days", "Rescue doses: " + rescue + "  ·  Total doses: " + list.length, ""];
   list.forEach(d => lines.push(new Date(d.at).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + fmtTime(d.at) + " — " + d.name + (d.dose ? " (" + d.dose + ")" : "") + (d.note ? " — " + d.note : "")));
   const text = lines.join("\n");
-  try { await navigator.clipboard.writeText(text); setMsg("copyMsg", "Copied. Paste it into a message or a note for her doctor.", "ok"); }
+  try { await navigator.clipboard.writeText(text); setMsg("copyMsg", "Copied. Paste it into a message or a note for the doctor.", "ok"); }
   catch (e) {
     const ta = el("textarea"); ta.value = text; ta.setAttribute("aria-label", "30-day summary"); ta.style.minHeight = "160px";
     $("copyMsg").replaceChildren(ta); ta.focus(); ta.select();
