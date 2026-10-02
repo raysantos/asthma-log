@@ -335,18 +335,9 @@ textarea { min-height: 64px; resize: vertical; }
             </select>
           </div>
           <div class="field">
-            <label for="mDelivery">Given by</label>
-            <select id="mDelivery">
-              <option value="inhaler">Inhaler</option>
-              <option value="nebulizer">Nebulizer</option>
-              <option value="oral">Pill / liquid</option>
-              <option value="other">Other</option>
-            </select>
+            <label for="mDose">Usual amount</label>
+            <input id="mDose" placeholder="e.g. 2 puffs" autocomplete="off">
           </div>
-        </div>
-        <div class="field">
-          <label for="mDose">Usual amount</label>
-          <input id="mDose" placeholder="e.g. 2 puffs" autocomplete="off">
         </div>
         <div class="row">
           <div class="field">
@@ -390,7 +381,6 @@ textarea { min-height: 64px; resize: vertical; }
 
 <script>
 const KIND_LABEL = { rescue: "Rescue", controller: "Controller", nebulizer: "Nebulizer", oral: "Oral", other: "Other" };
-const DELIVERY_LABEL = { inhaler: "Inhaler", nebulizer: "Nebulizer", oral: "Pill / liquid", other: "" };
 const $ = (id) => document.getElementById(id);
 const PASS_HASH = "b964d0a5f9776cd9f3abfb9d303e1c11eae18ca9b28eba1e5169af14e8d9112f";
 let unlocked = false;
@@ -570,7 +560,7 @@ function renderMeds() {
     nm.append(document.createTextNode(m.name), el("span", "tag", KIND_LABEL[m.kind]));
     info.append(nm);
     const sched = m.schedule === "twice" ? "morning & night" : m.schedule === "once" ? "once a day" : "";
-    const subLine = [DELIVERY_LABEL[m.delivery] || "", m.dose ? "Usual: " + m.dose : "", sched].filter(Boolean).join(" · ");
+    const subLine = [m.dose ? "Usual: " + m.dose : "", sched].filter(Boolean).join(" · ");
     if (subLine) info.append(el("span", "sub", subLine));
     row.append(info);
     if (db && canWrite && unlocked) {
@@ -711,7 +701,7 @@ $("addMedBtn").addEventListener("click", async () => {
   if (!name) { setMsg("medMsg", "Give the medication a name.", "err"); return; }
   if (!unlocked) { setMsg("medMsg", "Unlock with the password on the Dosage tab first.", "err"); return; }
   if (!db || !canWrite) { setMsg("medMsg", "Saving isn't available in this view.", "err"); return; }
-  const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, delivery: $("mDelivery").value, dose: $("mDose").value.trim() };
+  const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, dose: $("mDose").value.trim() };
   const hrs = parseFloat($("mHours").value);
   if (hrs > 0) item.intervalH = hrs;
   if ($("mSched").value) item.schedule = $("mSched").value;
