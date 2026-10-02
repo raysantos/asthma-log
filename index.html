@@ -141,6 +141,11 @@ textarea { min-height: 64px; resize: vertical; }
 .stat { border-radius: 12px; padding: 12px 14px; background: var(--k-soft); display: flex; flex-direction: column; gap: 2px; }
 .stat .big { font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--k); line-height: 1.1; }
 .stat .lbl { font-size: 0.85rem; color: var(--ink); }
+.weekhead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.weekhead .range { color: var(--muted); font-size: 0.92rem; font-weight: 600; }
+.chartbox { border-top: 1px solid var(--line); padding-top: 14px; }
+.days span b { display: block; font-weight: 700; color: var(--ink); font-size: 0.8rem; }
+.days span.today, .days span.today b { color: var(--accent); }
 .chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .legend { display: flex; gap: 14px; font-size: 0.8rem; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -157,7 +162,7 @@ textarea { min-height: 64px; resize: vertical; }
 
 .day { display: flex; flex-direction: column; gap: 4px; }
 .day h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
-.entry { display: grid; grid-template-columns: 4.5rem 1fr auto; gap: 10px; align-items: start; padding: 8px 0; }
+.entry { display: grid; grid-template-columns: 5.25rem 1fr auto; gap: 10px; align-items: start; padding: 8px 0; }
 .entry .t { font-weight: 700; padding-top: 1px; }
 .entry .what { min-width: 0; }
 .entry .name { font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -292,13 +297,13 @@ textarea { min-height: 64px; resize: vertical; }
 
   <div class="tabpanel" id="tab-history" role="tabpanel" aria-labelledby="t-history" hidden>
 
-  <section class="section" aria-labelledby="weekH">
-    <div class="section-head">
+  <section class="panel weekpanel" aria-labelledby="weekH">
+    <div class="weekhead">
       <h2 id="weekH">Last 7 days</h2>
-      <button class="ghost" id="copyBtn" type="button">Copy 30-day summary</button>
+      <span class="range num" id="weekRange"></span>
     </div>
     <div class="week" id="week"></div>
-    <div>
+    <div class="chartbox">
       <div class="chart-head">
         <div class="eyebrow">Doses per day</div>
         <div class="legend"><span class="k-rescue"><i></i>Rescue</span><span class="k-controller"><i></i>Controller</span></div>
@@ -306,11 +311,14 @@ textarea { min-height: 64px; resize: vertical; }
       <div class="bars" id="bars" role="img" aria-label="Rescue and controller doses per day, last 7 days"></div>
       <div class="days" id="days"></div>
     </div>
-    <p class="msg" id="copyMsg" role="status"></p>
   </section>
 
   <section class="section" aria-labelledby="histH">
-    <h2 id="histH">History</h2>
+    <div class="section-head">
+      <h2 id="histH">History</h2>
+      <button class="ghost" id="copyBtn" type="button">Copy 30-day summary</button>
+    </div>
+    <p class="msg" id="copyMsg" role="status"></p>
     <div id="history"><p class="empty">Doses you save will show up here, newest first.</p></div>
   </section>
   </div>
@@ -484,6 +492,8 @@ $("lockBtn").addEventListener("click", () => {
 
 function renderWeek() {
   const now = new Date(); const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6);
+  const md = d => d.toLocaleDateString([], { month: "short", day: "numeric" });
+  $("weekRange").textContent = md(start) + " – " + md(now);
   const recent = doses.filter(d => d.at >= start.getTime());
   const counts = { rescue: 0, controller: 0, nebulizer: 0, oral: 0, other: 0 };
   recent.forEach(d => { counts[d.kind] = (counts[d.kind] || 0) + 1; });
@@ -515,7 +525,10 @@ function renderWeek() {
     const bar = el("div", "bar"), pair = el("div", "pair");
     pair.append(colFor(p.r, "rescue", "rescue"), colFor(p.c, "controller", "controller"));
     bar.append(pair); b.append(bar);
-    ds.append(el("span", null, p.d.toLocaleDateString([], { weekday: "short" }).slice(0, 2)));
+    const isToday = dayKey(p.d.getTime()) === dayKey(Date.now());
+    const lab = el("span", isToday ? "today" : null, isToday ? "Today" : p.d.toLocaleDateString([], { weekday: "short" }));
+    lab.append(el("b", "num", String(p.d.getDate())));
+    ds.append(lab);
   });
 }
 
