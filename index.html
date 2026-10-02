@@ -72,6 +72,7 @@ img { max-width: 100%; }
 .savedhead strong { display: block; color: var(--controller); font-size: 1.05rem; }
 .savedhead span#savedSub { color: var(--ink); }
 .savedbox .btnrow .ghost { background: var(--surface); }
+.loadmore { display: block; width: 100%; margin-top: 12px; padding: 12px; }
 .savedfoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 0.95rem; }
 .chips.cooling .chip { opacity: 0.45; pointer-events: none; }
 .dupbox { border-radius: 12px; padding: 14px 16px; background: var(--rescue-soft); display: flex; flex-direction: column; gap: 10px; }
@@ -518,11 +519,16 @@ function renderWeek() {
   });
 }
 
+let histDays = 2;   // Today and Yesterday; "Load more" adds a week at a time
 function renderHistory() {
   const h = $("history"); h.replaceChildren();
   if (!doses.length) { h.append(el("p", "empty", "Doses you save will show up here, newest first.")); return; }
+  const cutoff = new Date(); cutoff.setHours(0, 0, 0, 0); cutoff.setDate(cutoff.getDate() - (histDays - 1));
+  const shown = doses.filter(d => d.at >= cutoff.getTime());
+  const older = doses.length - shown.length;
+  if (!shown.length) h.append(el("p", "empty", histDays === 2 ? "No doses today or yesterday." : "No doses in this period."));
   let curKey = null, group = null;
-  doses.slice(0, 200).forEach(d => {
+  shown.forEach(d => {
     const k = dayKey(d.at);
     if (k !== curKey) { curKey = k; group = el("div", "day"); group.append(el("h3", null, dayLabel(d.at))); h.append(group); }
     const row = el("div", "entry k-" + d.kind);
@@ -545,8 +551,11 @@ function renderHistory() {
     }
     group.append(row);
   });
-  const extra = doses.length - 200;
-  if (extra > 0) h.append(el("p", "empty", extra + " older doses are saved but not shown."));
+  if (older > 0) {
+    const more = el("button", "ghost loadmore", "Load more"); more.type = "button";
+    more.addEventListener("click", () => { histDays += 7; renderHistory(); });
+    h.append(more);
+  }
 }
 
 function renderMeds() {
