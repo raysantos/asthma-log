@@ -10,6 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="firebase-config.js"></script>
+<script>/* set day/night theme before first paint */(function(){var t=null;try{var o=JSON.parse(localStorage.getItem("asthma-log-theme-override")||"null");if(o&&o.until>Date.now())t=o.theme;}catch(e){}if(t!=="dark"&&t!=="light"){var h=new Date().getHours();t=(h>=7&&h<19)?"light":"dark";}document.documentElement.dataset.theme=t;})();</script>
 <title>Asthma Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -791,10 +792,32 @@ const MOON = '<span class="material-symbols-outlined" aria-hidden="true">dark_mo
 const themeBtn = $("theme"), rootEl = document.documentElement;
 const isDark = () => rootEl.dataset.theme ? rootEl.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
 function paintTheme() { const d = isDark(); themeBtn.innerHTML = d ? SUN : MOON; const l = d ? "Switch to light mode" : "Switch to dark mode"; themeBtn.setAttribute("aria-label", l); themeBtn.title = l; }
-let savedTheme = null; try { savedTheme = localStorage.getItem("zoe-meds-theme"); } catch (_) {}
-rootEl.dataset.theme = savedTheme === "dark" ? "dark" : "light";
-paintTheme();
-themeBtn.addEventListener("click", () => { const next = isDark() ? "light" : "dark"; rootEl.dataset.theme = next; try { localStorage.setItem("zoe-meds-theme", next); } catch (_) {} paintTheme(); });
+// Light during the day (7am–7pm), dark at night. A manual switch holds until the next 7am/7pm change.
+const DAY_START = 7, NIGHT_START = 19;
+const autoTheme = (d = new Date()) => (d.getHours() >= DAY_START && d.getHours() < NIGHT_START) ? "light" : "dark";
+function nextSwitch(d = new Date()) {
+  const n = new Date(d); n.setSeconds(0, 0); n.setMinutes(0);
+  const h = d.getHours();
+  if (h < DAY_START) n.setHours(DAY_START);
+  else if (h < NIGHT_START) n.setHours(NIGHT_START);
+  else { n.setDate(n.getDate() + 1); n.setHours(DAY_START); }
+  return n.getTime();
+}
+function applyTheme() {
+  let o = null; try { o = JSON.parse(localStorage.getItem("asthma-log-theme-override") || "null"); } catch (_) {}
+  const want = (o && o.until > Date.now() && (o.theme === "dark" || o.theme === "light")) ? o.theme : autoTheme();
+  if (rootEl.dataset.theme !== want) rootEl.dataset.theme = want;
+  paintTheme();
+}
+try { localStorage.removeItem("zoe-meds-theme"); } catch (_) {}  // old "forever" setting
+applyTheme();
+setInterval(applyTheme, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) applyTheme(); });
+themeBtn.addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  try { localStorage.setItem("asthma-log-theme-override", JSON.stringify({ theme: next, until: nextSwitch() })); } catch (_) {}
+  rootEl.dataset.theme = next; paintTheme();
+});
 
 const TABS = ["log", "history", "meds"];
 function updateFab() {
