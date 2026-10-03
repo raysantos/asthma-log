@@ -800,10 +800,15 @@ const TABS = ["log", "history", "meds"];
 function updateFab() {
   const fab = $("fab"); if (!fab) return;
   const onLog = !$("tab-log").hidden;
+  const onMeds = !$("tab-meds").hidden;   // Medications tab has its own form and buttons; keep it clear
+  const ae = document.activeElement;
+  const typing = ae && ae.matches && ae.matches("input, select, textarea");  // keyboard open: don't float over fields
   const r = $("logPanel").getBoundingClientRect();
-  fab.hidden = !unlocked || (onLog && r.top < window.innerHeight - 90 && r.bottom > 120);  // only for phones that can log
+  fab.hidden = !unlocked || onMeds || typing || (onLog && r.top < window.innerHeight - 90 && r.bottom > 120);  // only for phones that can log
 }
 window.addEventListener("scroll", updateFab, { passive: true });
+document.addEventListener("focusin", () => updateFab());
+document.addEventListener("focusout", () => setTimeout(updateFab, 0));
 window.addEventListener("resize", updateFab);
 $("fab").addEventListener("click", () => {
   showTab("log");
