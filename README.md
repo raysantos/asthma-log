@@ -5,7 +5,7 @@ A phone-friendly log of asthma medications. It covers:
 - Log each dose with the time given, the amount and an optional note.
 - See when the next dose is OK. For as-needed medications this comes from the hours between doses; for twice-a-day medications it shows a morning/night checklist.
 - See rescue and controller doses per day for the last 7 days.
-- Copy a 30-day summary to send to her doctor.
+- Copy a 30-day summary to send to the doctor.
 - Switch between light and dark mode.
 
 **Live app:** https://raysantos.github.io/asthma-log/
