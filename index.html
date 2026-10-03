@@ -112,6 +112,19 @@ header { display: flex; flex-direction: column; gap: 6px; }
 .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.step { display: flex; flex-direction: column; gap: 10px; }
+.steplabel { margin: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.02rem; color: var(--ink); }
+.stepnum { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--tabbar); border: 1px solid var(--line); color: var(--accent); font-size: 0.9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.chips.tiles { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.chips.tiles .chip { border-radius: 14px; padding: 14px 16px; min-height: 72px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; text-align: left; width: 100%; }
+.chips.tiles .chip .tname { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; width: 100%; }
+.chips.tiles .chip .tsub { font-size: 0.86rem; font-weight: 600; color: var(--muted); }
+.chips.tiles .chip .tsub.ok { color: var(--controller); }
+.chips.tiles .chip .tsub.wait { color: var(--rescue); }
+.chips.tiles .chip[aria-pressed="true"] { box-shadow: 0 0 0 1px var(--k); }
+.chips.tiles .chip .tick { margin-left: auto; flex: none; color: var(--k); font-size: 22px; font-weight: 400; line-height: 1; width: 22px; height: 22px; overflow: hidden; font-variation-settings: "FILL" 1; }
+.notebox summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: 0.95rem; padding: 4px 0; }
+.notebox textarea { margin-top: 8px; }
 .chip { border: 2px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--k); flex: none; }
 .chip[aria-pressed="true"] { border-color: var(--k); background: var(--k-soft); }
@@ -251,11 +264,13 @@ textarea { min-height: 64px; resize: vertical; }
 
   <section class="panel" aria-labelledby="logH" id="logPanel">
     <h2 id="logH">Log a dose</h2>
-    <div class="field">
-      <label>Medication</label>
-      <div class="chips" id="medChips"></div>
-      <p class="empty" id="noMeds" hidden>Add medications in the Medications tab first, then they'll show up here as quick buttons.</p>
+    <div class="step">
+      <p class="steplabel"><span class="stepnum">1</span>Pick the medicine</p>
+      <div class="chips tiles" id="medChips" role="group" aria-label="Medicine"></div>
+      <p class="empty" id="noMeds" hidden>Add medications in the Medications tab first, then they'll show up here as buttons.</p>
     </div>
+    <div class="step">
+    <p class="steplabel"><span class="stepnum">2</span>Check the amount and time</p>
     <div class="row logrow">
       <div class="field">
         <label for="dose">Amount</label>
@@ -269,10 +284,12 @@ textarea { min-height: 64px; resize: vertical; }
         </div>
       </div>
     </div>
-    <div class="field">
-      <label for="note">Note (optional)</label>
-      <textarea id="note" placeholder="Why, or how things were — e.g. coughing after soccer"></textarea>
+    <details class="notebox" id="noteBox">
+      <summary>Add a note</summary>
+      <textarea id="note" aria-label="Note" placeholder="Why, or how things were — e.g. coughing after soccer"></textarea>
+    </details>
     </div>
+    <p class="steplabel" id="step3"><span class="stepnum">3</span>Save it</p>
     <div class="lockbox" id="lockBox" hidden>
       <div class="field">
         <label for="pw">Password to log doses</label>
@@ -439,13 +456,29 @@ function renderStatus() {
   s.append(el("span", null, "Last Dose: " + last.name.replace(/\s+(inhaler|nebulizer)$/i, "")), el("strong", "num", ago(last.at)));
 }
 
+function medStatus(m) {
+  const last = lastDoseOf(m), h = Number(m.intervalH) || 0;
+  if (m.schedule === "twice" || m.schedule === "once") {
+    const todayK = dayKey(Date.now());
+    const today = doses.filter(d => sameMed(d, m) && dayKey(d.at) === todayK);
+    if (m.schedule === "once") return today.length ? { cls: "", text: "Done today" } : { cls: "ok", text: "Due today" };
+    const morning = new Date().getHours() < 12;
+    const done = today.some(d => (new Date(d.at).getHours() < 12) === morning);
+    return done ? { cls: "", text: morning ? "Morning done" : "Night done" } : { cls: "ok", text: morning ? "Due this morning" : "Due tonight" };
+  }
+  if (h && last && last.at + h * 3600000 > Date.now()) return { cls: "wait", text: "Wait until " + clockWithDay(last.at + h * 3600000).replace("Tomorrow", "tomorrow") };
+  return { cls: "ok", text: h ? "OK now" : "As needed" };
+}
 function renderChips() {
   const c = $("medChips"); c.replaceChildren();
   $("noMeds").hidden = meds.length > 0;
   meds.forEach(m => {
+    const on = selectedMed === m.id, st = medStatus(m);
     const b = el("button", "chip k-" + m.kind); b.type = "button";
-    b.setAttribute("aria-pressed", selectedMed === m.id ? "true" : "false");
-    b.append(el("span", "dot"), document.createTextNode(m.name));
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    const top = el("span", "tname"); top.append(el("span", "dot"), document.createTextNode(m.name));
+    if (on) { const t = el("span", "material-symbols-outlined tick", "check_circle"); t.setAttribute("aria-hidden", "true"); top.append(t); }
+    b.append(top, el("span", "tsub " + st.cls, [m.dose, st.text].filter(Boolean).join(" · ")));
     b.addEventListener("click", () => {
       if (Date.now() < coolUntil) return;              // brief cooldown right after a save
       selectedMed = m.id; savedId = null; $("dupBox").hidden = true;
@@ -464,7 +497,9 @@ function updateSave() {
   $("savedBox").hidden = !showSaved;
   if (showSaved || !unlocked) $("dupBox").hidden = true;
   $("saveBtn").disabled = saving || !db || !canWrite || !unlocked || !meds.some(m => m.id === selectedMed) || !$("when").value;
-  $("saveBtn").textContent = saving ? "Saving…" : "Save dose";
+  const sel = meds.find(m => m.id === selectedMed);
+  $("saveBtn").textContent = saving ? "Saving…" : sel ? "Save " + sel.name + " dose" : "Pick a medicine to save";
+  $("step3").hidden = !unlocked || showSaved;
 }
 function clearSaved() { if (savedId) { savedId = null; updateSave(); } }
 let remoteAuth = null; // set when the shared Firebase log is connected
@@ -701,7 +736,7 @@ async function saveDose(force) {
     write.catch(() => setMsg("msg", "That dose didn't reach the shared log. Check your connection; it will retry.", "err"));
     savedId = id;
     $("savedSub").textContent = [m.name, amount, fmtTime(at)].filter(Boolean).join(" · ");
-    selectedMed = null; $("note").value = ""; $("dose").value = ""; setNow(); setMsg("msg", "");
+    selectedMed = null; $("note").value = ""; $("noteBox").open = false; $("dose").value = ""; setNow(); setMsg("msg", "");
     try { navigator.vibrate && navigator.vibrate(25); } catch (_) {}
     coolUntil = Date.now() + 2000;                      // absorb stray taps, then ready for the next dose
     $("medChips").classList.add("cooling");
@@ -798,7 +833,7 @@ showTab(TABS.includes(savedTab) ? savedTab : "log");
 
 setNow();
 renderAll();
-setInterval(() => { renderStatus(); renderNext(); }, 30000);
+setInterval(() => { renderStatus(); renderNext(); renderChips(); }, 30000);
 
 // ---------- Storage adapters (same small API for both) ----------
 function makeLocalDb() {
