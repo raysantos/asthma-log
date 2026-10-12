@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add,add_to_home_screen,check_circle,dark_mode,expand_more,light_mode&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=add,add_to_home_screen,check_circle,content_copy,dark_mode,expand_more,light_mode&display=block">
 <style>
 /* Layout: one phone-first column — status up top, a big log form, then the week, history, and the medication list. */
 :root {
@@ -95,6 +95,8 @@ header { display: flex; flex-direction: column; gap: 6px; }
 .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .icon-btn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; flex: none; }
 .icon-btn:hover { color: var(--ink); border-color: var(--muted); }
+.icon-btn.copybtn { width: 40px; height: 40px; color: var(--accent); align-self: center; }
+.icon-btn.copybtn .material-symbols-outlined { font-size: 20px; width: 20px; }
 .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 .fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 14px 24px 14px 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 1.05rem; box-shadow: 0 8px 24px rgb(0 0 0 / 0.22); white-space: nowrap; }
 .fab .material-symbols-outlined { font-size: 22px; line-height: 1; width: 22px; overflow: hidden; }
@@ -340,7 +342,7 @@ textarea { min-height: 64px; resize: vertical; }
   <section class="section" aria-labelledby="histH">
     <div class="section-head">
       <h2 id="histH">History</h2>
-      <button class="ghost" id="copyBtn" type="button">Copy 30-day summary</button>
+      <button class="icon-btn copybtn" id="copyBtn" type="button" aria-label="Copy 30-day summary" title="Copy 30-day summary"><span class="material-symbols-outlined" aria-hidden="true">content_copy</span></button>
     </div>
     <p class="msg" id="copyMsg" role="status"></p>
     <div id="history"><p class="empty">Doses you save will show up here, newest first.</p></div>
