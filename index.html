@@ -724,6 +724,7 @@ function renderMeds() {
       rm.addEventListener("click", async () => {
         if (armedDel !== "m:" + m.id) { armedDel = "m:" + m.id; renderMeds(); return; }
         armedDel = null;
+        if (!medsLoaded) { setMsg("medMsg", NOT_LOADED, "err"); return; }
         const next = meds.filter(x => x.id !== m.id);
         try { await db.doc("config/meds").set({ items: next }); if (selectedMed === m.id) selectedMed = null; }
         catch (e) { setMsg("medMsg", "Couldn't remove it. Try again.", "err"); }
@@ -858,6 +859,7 @@ $("addMedBtn").addEventListener("click", async () => {
   if (!name) { setMsg("medMsg", "Give the medication a name.", "err"); return; }
   if (!unlocked) { setMsg("medMsg", "Unlock with the password on the Dosage tab first.", "err"); return; }
   if (!db || !canWrite) { setMsg("medMsg", "Saving isn't available in this view.", "err"); return; }
+  if (!medsLoaded) { setMsg("medMsg", NOT_LOADED, "err"); return; }
   const item = { id: "m" + Date.now().toString(36), name, kind: $("mKind").value, dose: $("mDose").value.trim() };
   const hrs = parseFloat($("mHours").value);
   if (hrs > 0) item.intervalH = hrs;
@@ -1011,11 +1013,13 @@ function makeFireDb(fs, store) {
   };
 }
 
-let unsubs = [], medsReady = null, markMedsReady = () => {};
+let unsubs = [], medsReady = null, markMedsReady = () => {}, medsLoaded = false;
+// The whole list is saved at once, so saving before it loads would drop medications.
+const NOT_LOADED = "The medication list hasn't loaded yet, so nothing was saved. Reload the page and try again.";
 function stopListening() { unsubs.forEach(u => { try { u(); } catch (_) {} }); unsubs = []; }
 function listen(onDenied) {
   stopListening();
-  medsReady = new Promise(r => { markMedsReady = r; });
+  medsReady = new Promise(r => { markMedsReady = r; }); medsLoaded = false;
   const fail = (which) => (e) => {
     if (e && e.code === "permission-denied") return onDenied && onDenied();
     setMsg(which, "Lost connection to the log. Reload the page.", "err");
@@ -1023,7 +1027,7 @@ function listen(onDenied) {
   unsubs.push(db.doc("config/meds").onSnapshot(s => {
     const d = s.exists ? s.data() : null;
     meds = (d && Array.isArray(d.items) ? d.items : []).map(m => Object.assign({}, m, { name: cleanName(m.name) }));
-    markMedsReady();
+    medsLoaded = true; markMedsReady();
     if (selectedMed && !meds.some(m => m.id === selectedMed)) selectedMed = null;
     if (!selectedMed && meds.length === 1) { selectedMed = meds[0].id; if (meds[0].dose && !$("dose").value) $("dose").value = meds[0].dose; }
     renderAll();
@@ -1045,6 +1049,7 @@ $("exportBtn").addEventListener("click", async () => {
 $("importToggle").addEventListener("click", () => { $("importBox").hidden = !$("importBox").hidden; });
 async function importBackup(data) {
   const inMeds = Array.isArray(data.meds) ? data.meds : [], inDoses = Array.isArray(data.doses) ? data.doses : [];
+  if (!medsLoaded) throw new Error(NOT_LOADED);
   const byId = new Map(meds.map(m => [m.id, m])); inMeds.forEach(m => m && m.id && byId.set(m.id, m));
   await db.doc("config/meds").set({ items: [...byId.values()] });
   for (const d of inDoses) {
@@ -1201,14 +1206,21 @@ async function maybeImportFromHash() {
   let meUnsub = null, peopleUnsub = null, people = [], armedPerson = null;
   function closeLog() {
     stopListening(); if (peopleUnsub) { peopleUnsub(); peopleUnsub = null; }
-    unlocked = false; meds = []; doses = []; selectedMed = null;
+    unlocked = false; meds = []; doses = []; selectedMed = null; $("offline").hidden = true;
     setAdminOpen(false); $("adminBtn").hidden = true; $("adminBadge").hidden = true; $("mePanel").hidden = true;
   }
-  function openLog(user) {
+  async function openLog(user) {
     if (unlocked) return;
     unlocked = true; setGate(null); setMsg("gateMsg", "");
+    // The database checks the sign-in pass, which can predate verifying the email.
+    if (isAdminUser(user)) { try { await user.getIdToken(true); } catch (_) {} }
+    if (!unlocked) return;
     setAcct([el("span", null, "Signed in as " + user.email + ". Every approved phone sees the same doses, live.")]);
-    listen(); renderAll(); maybeImportFromHash();
+    listen(() => {
+      $("offline").textContent = "The database didn't let this account read the log. Sign out and sign back in. If that doesn't fix it, check that the rules from firestore.rules are published.";
+      $("offline").hidden = false;
+    });
+    renderAll(); maybeImportFromHash();
     if (isAdminUser(user)) watchPeople();
     else { $("meWho").textContent = "Signed in as " + user.email + "."; $("mePanel").hidden = false; }
   }
