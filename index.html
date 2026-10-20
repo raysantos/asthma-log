@@ -321,6 +321,24 @@ textarea { min-height: 64px; resize: vertical; }
     <p class="msg" id="peopleMsg" role="status"></p>
   </section>
 
+  <section class="panel" aria-labelledby="syncH" id="syncPanel" hidden>
+    <h2 id="syncH">Sync &amp; backup</h2>
+    <div class="acct" id="acct"></div>
+    <div class="btnrow">
+      <button class="ghost" id="lockBtn" type="button" hidden>Lock this device</button>
+      <button class="ghost" id="exportBtn" type="button">Copy backup</button>
+      <button class="ghost" id="importToggle" type="button">Import backup</button>
+    </div>
+    <div class="section" id="importBox" hidden>
+      <div class="field">
+        <label for="importText">Paste a backup</label>
+        <textarea id="importText" placeholder='{"meds": [...], "doses": [...]}'></textarea>
+      </div>
+      <button class="primary" id="importBtn" type="button">Import into the log</button>
+    </div>
+    <p class="msg" id="syncMsg" role="status"></p>
+  </section>
+
   <section class="panel" aria-labelledby="adminAcctH">
     <h2 id="adminAcctH">Admin account</h2>
     <p class="fineprint" id="adminWho"></p>
@@ -469,22 +487,10 @@ textarea { min-height: 64px; resize: vertical; }
       </div>
   </section>
 
-  <section class="panel" aria-labelledby="syncH" id="syncPanel" hidden>
-    <h2 id="syncH">Sync &amp; backup</h2>
-    <div class="acct" id="acct"></div>
-    <div class="btnrow">
-      <button class="ghost" id="lockBtn" type="button" hidden>Lock this device</button>
-      <button class="ghost" id="exportBtn" type="button">Copy backup</button>
-      <button class="ghost" id="importToggle" type="button">Import backup</button>
-    </div>
-    <div class="section" id="importBox" hidden>
-      <div class="field">
-        <label for="importText">Paste a backup</label>
-        <textarea id="importText" placeholder='{"meds": [...], "doses": [...]}'></textarea>
-      </div>
-      <button class="primary" id="importBtn" type="button">Import into the log</button>
-    </div>
-    <p class="msg" id="syncMsg" role="status"></p>
+  <section class="panel" aria-labelledby="meH" id="mePanel" hidden>
+    <h2 id="meH">Your account</h2>
+    <p class="fineprint" id="meWho"></p>
+    <div class="btnrow"><button class="ghost" id="meSignOut" type="button">Sign out</button></div>
   </section>
   </div>
 </div>
@@ -1116,6 +1122,7 @@ async function maybeImportFromHash() {
   const cfg = window.FIREBASE_CONFIG;
   if (!cfg || !cfg.apiKey) {
     db = makeLocalDb();
+    $("mePanel").after($("syncPanel"));
     setAcct([el("span", null, "Saving on this device only. Connect Firebase (see the README) to share one log between phones.")]);
     listen();
     await maybeImportFromHash();
@@ -1179,6 +1186,7 @@ async function maybeImportFromHash() {
     setMsg("gateMsg", "If that email has an account, a reset link is on its way.", "ok");
   });
   $("signOutBtn").addEventListener("click", () => authMod.signOut(auth));
+  $("meSignOut").addEventListener("click", () => authMod.signOut(auth));
   $("recheckBtn").addEventListener("click", async () => {
     const u = auth.currentUser; if (!u) return;
     try { await u.reload(); await u.getIdToken(true); } catch (_) {}
@@ -1194,7 +1202,7 @@ async function maybeImportFromHash() {
   function closeLog() {
     stopListening(); if (peopleUnsub) { peopleUnsub(); peopleUnsub = null; }
     unlocked = false; meds = []; doses = []; selectedMed = null;
-    setAdminOpen(false); $("adminBtn").hidden = true; $("adminBadge").hidden = true;
+    setAdminOpen(false); $("adminBtn").hidden = true; $("adminBadge").hidden = true; $("mePanel").hidden = true;
   }
   function openLog(user) {
     if (unlocked) return;
@@ -1202,6 +1210,7 @@ async function maybeImportFromHash() {
     setAcct([el("span", null, "Signed in as " + user.email + ". Every approved phone sees the same doses, live.")]);
     listen(); renderAll(); maybeImportFromHash();
     if (isAdminUser(user)) watchPeople();
+    else { $("meWho").textContent = "Signed in as " + user.email + "."; $("mePanel").hidden = false; }
   }
   function showWaiting(user, status) {
     closeLog(); setGate("waiting"); renderAll();
@@ -1230,7 +1239,7 @@ async function maybeImportFromHash() {
   function watchPeople() {
     if (peopleUnsub) return;
     $("adminBtn").hidden = false;
-    $("adminWho").textContent = "Signed in as " + (auth.currentUser && auth.currentUser.email) + ". Only this account sees the admin settings.";
+    $("adminWho").textContent = "Only " + (auth.currentUser && auth.currentUser.email) + " sees the admin settings.";
     peopleUnsub = fs.onSnapshot(fs.collection(store, "users"), snap => {
       people = snap.docs.map(d => Object.assign({ uid: d.id }, d.data())).filter(p => (p.email || "").toLowerCase() !== ADMIN_EMAIL);
       renderPeople();
