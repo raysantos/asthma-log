@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d6a86">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Asthma Log">
+<meta name="apple-mobile-web-app-title" content="Puffer">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="firebase-config.js"></script>
 <script>/* set day/night theme before first paint */(function(){var t=null;try{var o=JSON.parse(localStorage.getItem("asthma-log-theme-override")||"null");if(o&&o.until>Date.now())t=o.theme;}catch(e){}if(t!=="dark"&&t!=="light"){var h=new Date().getHours();t=(h>=7&&h<19)?"light":"dark";}document.documentElement.dataset.theme=t;})();</script>
-<title>Asthma Log</title>
+<title>Puffer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
@@ -266,7 +266,7 @@ textarea { min-height: 64px; resize: vertical; }
         <button id="theme" type="button" class="icon-btn" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
       </div>
     </div>
-    <h1>Asthma Log</h1>
+    <h1>Puffer</h1>
     <div class="status" id="status"><span>Loading doses…</span></div>
   </header>
 
@@ -1116,8 +1116,8 @@ async function maybeImportFromHash() {
       if (choice && choice.outcome === "accepted") btn.hidden = true;
       return;
     }
-    if (isIOS) showHelp(["Tap the Share button (the square with an arrow pointing up) in Safari's toolbar.", "Scroll down and tap Add to Home Screen.", "Tap Add. Asthma Log appears on your home screen like an app."]);
-    else showHelp(["Open your browser's menu (⋮ or the share button).", "Choose Install app or Add to Home Screen.", "Confirm, and Asthma Log appears with your other apps."]);
+    if (isIOS) showHelp(["Tap the Share button (the square with an arrow pointing up) in Safari's toolbar.", "Scroll down and tap Add to Home Screen.", "Tap Add. Puffer appears on your home screen like an app."]);
+    else showHelp(["Open your browser's menu (⋮ or the share button).", "Choose Install app or Add to Home Screen.", "Confirm, and Puffer appears with your other apps."]);
   });
   $("installClose").addEventListener("click", () => { help.hidden = true; });
 })();

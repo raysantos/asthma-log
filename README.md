@@ -1,4 +1,4 @@
-# Asthma Log
+# Puffer
 
 A phone-friendly log of asthma medications. It covers:
 

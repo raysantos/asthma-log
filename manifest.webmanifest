@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Asthma Log",
-  "short_name": "Asthma Log",
+  "name": "Puffer",
+  "short_name": "Puffer",
   "description": "Log asthma medication doses and see when the next dose is OK.",
   "start_url": "./",
   "scope": "./",
