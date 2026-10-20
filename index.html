@@ -82,6 +82,12 @@ img { max-width: 100%; }
 .lockbox { border-top: 1px dashed var(--line); padding-top: 14px; }
 /* Signed out with the shared log: show only the password screen */
 body.gated .tabs, body.gated .tabs-sentinel, body.gated .tabpanel, body.gated #status, body.gated #fab { display: none !important; }
+.gate-form { display: flex; flex-direction: column; gap: 14px; }
+.gate-form input { width: 100%; }
+.linkrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.linkbtn { border: 0; background: transparent; color: var(--accent); font-weight: 700; padding: 6px 0; }
+.person .sub { word-break: break-all; }
+.person .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; overflow-x: clip; }
 .wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
 h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
@@ -258,15 +264,28 @@ textarea { min-height: 64px; resize: vertical; }
 
   <div class="banner" id="offline" hidden>Couldn't connect to the log. Check your internet connection and reload.</div>
 
-  <section class="panel" id="gate" hidden aria-labelledby="gateH">
-    <h2 id="gateH">Enter the family password</h2>
-    <p class="fineprint">The log is private. Unlock once on each phone to see and log doses.</p>
-    <div class="field">
-      <label for="gatePw">Password</label>
-      <div class="timefield">
-        <input id="gatePw" type="password" autocomplete="current-password" enterkeyhint="go">
-        <button class="primary slim" id="gateBtn" type="button">Unlock</button>
-      </div>
+  <section class="panel" id="gate" hidden aria-labelledby="gateH" aria-live="polite">
+    <div class="gate-form" data-mode="signin">
+      <h2 id="gateH">Sign in</h2>
+      <p class="fineprint">The log is private. Sign in with your own email and password.</p>
+      <div class="field"><label for="siEmail">Email</label><input id="siEmail" type="email" autocomplete="username" inputmode="email"></div>
+      <div class="field"><label for="siPw">Password</label><input id="siPw" type="password" autocomplete="current-password" enterkeyhint="go"></div>
+      <button class="primary" id="siBtn" type="button">Sign in</button>
+      <div class="linkrow"><button class="linkbtn" type="button" data-go="signup">Create an account</button><button class="linkbtn" type="button" id="forgotBtn">Forgot password?</button></div>
+    </div>
+    <div class="gate-form" data-mode="signup" hidden>
+      <h2>Create an account</h2>
+      <p class="fineprint">After you sign up, the log's admin approves your account before you can see it.</p>
+      <div class="field"><label for="suName">Your name</label><input id="suName" autocomplete="name"></div>
+      <div class="field"><label for="suEmail">Email</label><input id="suEmail" type="email" autocomplete="username" inputmode="email"></div>
+      <div class="field"><label for="suPw">Password (at least 6 characters)</label><input id="suPw" type="password" autocomplete="new-password" enterkeyhint="go"></div>
+      <button class="primary" id="suBtn" type="button">Create account</button>
+      <div class="linkrow"><button class="linkbtn" type="button" data-go="signin">I already have an account</button></div>
+    </div>
+    <div class="gate-form" data-mode="waiting" hidden>
+      <h2 id="waitH">Waiting for approval</h2>
+      <p id="waitText"></p>
+      <div class="btnrow"><button class="ghost" id="recheckBtn" type="button" hidden>I've verified my email</button><button class="ghost" id="signOutBtn" type="button">Sign out</button></div>
     </div>
     <p class="msg" id="gateMsg" role="status"></p>
   </section>
@@ -408,6 +427,13 @@ textarea { min-height: 64px; resize: vertical; }
       </div>
   </section>
 
+  <section class="panel" aria-labelledby="peopleH" id="peoplePanel" hidden>
+    <div class="section-head"><h2 id="peopleH">People</h2><span id="peopleCount" class="num sumright"></span></div>
+    <p class="fineprint">Only you see this. Approve someone to give them the log; remove them to cut off access right away.</p>
+    <div class="medlist" id="peopleList"></div>
+    <p class="msg" id="peopleMsg" role="status"></p>
+  </section>
+
   <section class="panel" aria-labelledby="syncH" id="syncPanel" hidden>
     <h2 id="syncH">Sync &amp; backup</h2>
     <div class="acct" id="acct"></div>
@@ -532,11 +558,10 @@ async function tryUnlock(pwId, btnId, msgId) {
   if (!v) return;
   $(btnId).disabled = true;
   let r;
-  try { r = remoteAuth ? await remoteAuth.unlock(v) : { ok: (await hashPass(v)) === PASS_HASH }; }
+  try { r = { ok: (await hashPass(v)) === PASS_HASH }; }
   finally { $(btnId).disabled = false; }
   if (r.ok) {
     $(pwId).value = ""; setMsg(msgId, "");
-    if (remoteAuth) return;            // the sign-in listener opens the log and finishes any import
     unlocked = true;
     try { localStorage.setItem("asthma-log-unlocked", PASS_HASH); } catch (_) {}
     setMsg("msg", "Unlocked on this device.", "ok"); renderAll();
@@ -545,9 +570,12 @@ async function tryUnlock(pwId, btnId, msgId) {
 }
 $("unlockBtn").addEventListener("click", () => tryUnlock("pw", "unlockBtn", "msg"));
 $("pw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); tryUnlock("pw", "unlockBtn", "msg"); } });
-$("gateBtn").addEventListener("click", () => tryUnlock("gatePw", "gateBtn", "gateMsg"));
-$("gatePw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); tryUnlock("gatePw", "gateBtn", "gateMsg"); } });
-function setGate(on) { document.body.classList.toggle("gated", on); $("gate").hidden = !on; }
+// mode: "signin" | "signup" | "waiting" | null (log open)
+function setGate(mode) {
+  document.body.classList.toggle("gated", !!mode); $("gate").hidden = !mode;
+  if (mode) document.querySelectorAll("#gate [data-mode]").forEach(f => { f.hidden = f.dataset.mode !== mode; });
+}
+document.querySelectorAll("#gate [data-go]").forEach(b => b.addEventListener("click", () => { setMsg("gateMsg", ""); setGate(b.dataset.go); }));
 $("lockBtn").addEventListener("click", () => {
   unlocked = false; try { localStorage.removeItem("asthma-log-unlocked"); } catch (_) {}
   if (remoteAuth) remoteAuth.lock();
@@ -1069,35 +1097,145 @@ async function maybeImportFromHash() {
   let store;
   try { store = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() }); } catch (e) { store = fs.getFirestore(app); }
   const auth = authMod.getAuth(app);
-  // One shared family account. The password is checked by Firebase, not by this page.
-  const FAMILY_EMAIL = "asthma-log-family@example.com";
-  unlocked = false;
-  remoteAuth = {
-    async unlock(pw) {
-      try { await authMod.signInWithEmailAndPassword(auth, FAMILY_EMAIL, pw); return { ok: true }; }
-      catch (e) {
-        const c = e && e.code || "";
-        if (c === "auth/too-many-requests") return { ok: false, why: "Too many tries. Wait a few minutes, then try again." };
-        if (c === "auth/network-request-failed") return { ok: false, why: "No internet connection. Connect and try again." };
-        // First unlock ever: create the family account, but only with the right password.
-        if ((await hashPass(pw)) === PASS_HASH) {
-          try { await authMod.createUserWithEmailAndPassword(auth, FAMILY_EMAIL, pw); return { ok: true }; } catch (_) {}
-        }
-        return { ok: false };
-      }
-    },
-    lock() { return authMod.signOut(auth); }
+  // Everyone signs in with their own email and password. New accounts wait until the
+  // admin approves them; firestore.rules enforces the same thing on the server.
+  const ADMIN_EMAIL = "raysandesigns@gmail.com";
+  const isAdminUser = u => !!u && (u.email || "").toLowerCase() === ADMIN_EMAIL && u.emailVerified;
+  const authErr = (e, fallback) => {
+    const c = e && e.code || "";
+    if (c === "auth/invalid-credential" || c === "auth/wrong-password" || c === "auth/user-not-found" || c === "auth/invalid-login-credentials") return "That email or password isn't right.";
+    if (c === "auth/invalid-email") return "That doesn't look like an email address.";
+    if (c === "auth/email-already-in-use") return "That email already has an account. Sign in instead.";
+    if (c === "auth/weak-password") return "Use a password with at least 6 characters.";
+    if (c === "auth/too-many-requests") return "Too many tries. Wait a few minutes, then try again.";
+    if (c === "auth/network-request-failed") return "No internet connection. Connect and try again.";
+    return fallback;
   };
+  const busy = (id, on) => { $(id).disabled = on; };
+  let signupName = "";
+
+  async function signIn() {
+    const email = $("siEmail").value.trim(), pw = $("siPw").value;
+    if (!email || !pw) { setMsg("gateMsg", "Enter your email and password.", "err"); return; }
+    busy("siBtn", true); setMsg("gateMsg", "");
+    try { await authMod.signInWithEmailAndPassword(auth, email, pw); $("siPw").value = ""; }
+    catch (e) { setMsg("gateMsg", authErr(e, "Couldn't sign in. Try again."), "err"); }
+    finally { busy("siBtn", false); }
+  }
+  async function signUp() {
+    const name = $("suName").value.trim(), email = $("suEmail").value.trim(), pw = $("suPw").value;
+    if (!name || !email || !pw) { setMsg("gateMsg", "Fill in your name, email and a password.", "err"); return; }
+    busy("suBtn", true); setMsg("gateMsg", ""); signupName = name.slice(0, 80);
+    try {
+      const cred = await authMod.createUserWithEmailAndPassword(auth, email, pw);
+      $("suPw").value = "";
+      try { await authMod.sendEmailVerification(cred.user); } catch (_) {}
+    } catch (e) { setMsg("gateMsg", authErr(e, "Couldn't create the account. Try again."), "err"); }
+    finally { busy("suBtn", false); }
+  }
+  $("siBtn").addEventListener("click", signIn);
+  $("siPw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
+  $("suBtn").addEventListener("click", signUp);
+  $("suPw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); signUp(); } });
+  $("forgotBtn").addEventListener("click", async () => {
+    const email = $("siEmail").value.trim();
+    if (!email) { setMsg("gateMsg", "Type your email above, then tap Forgot password.", "err"); return; }
+    try { await authMod.sendPasswordResetEmail(auth, email); } catch (_) {}
+    setMsg("gateMsg", "If that email has an account, a reset link is on its way.", "ok");
+  });
+  $("signOutBtn").addEventListener("click", () => authMod.signOut(auth));
+  $("recheckBtn").addEventListener("click", async () => {
+    const u = auth.currentUser; if (!u) return;
+    try { await u.reload(); await u.getIdToken(true); } catch (_) {}
+    if (isAdminUser(auth.currentUser)) { openLog(auth.currentUser); }
+    else setMsg("gateMsg", "Not verified yet. Open the link in the email we sent, then tap this again.", "err");
+  });
+
+  remoteAuth = { lock() { return authMod.signOut(auth); } };
+  $("lockBtn").textContent = "Sign out";
   db = makeFireDb(fs, store);
-  setAcct([el("span", null, "Shared log, saved online. Every unlocked phone sees the same doses, live.")]);
-  // Nothing is read until the family account signs in; the database rules refuse it anyway.
-  authMod.onAuthStateChanged(auth, user => {
-    unlocked = !!user;
-    if (user) { setGate(false); listen(); renderAll(); maybeImportFromHash(); }
-    else {
-      stopListening(); meds = []; doses = []; selectedMed = null;
-      setGate(true); renderAll(); maybeImportFromHash(); // asks for the password if an import link is waiting
+
+  let meUnsub = null, peopleUnsub = null, people = [], armedPerson = null;
+  function closeLog() {
+    stopListening(); if (peopleUnsub) { peopleUnsub(); peopleUnsub = null; }
+    unlocked = false; meds = []; doses = []; selectedMed = null; $("peoplePanel").hidden = true;
+  }
+  function openLog(user) {
+    if (unlocked) return;
+    unlocked = true; setGate(null); setMsg("gateMsg", "");
+    setAcct([el("span", null, "Signed in as " + user.email + ". Every approved phone sees the same doses, live.")]);
+    listen(); renderAll(); maybeImportFromHash();
+    if (isAdminUser(user)) watchPeople();
+  }
+  function showWaiting(user, status) {
+    closeLog(); setGate("waiting"); renderAll();
+    const unverifiedAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL && !user.emailVerified;
+    $("recheckBtn").hidden = !unverifiedAdmin;
+    if (unverifiedAdmin) {
+      $("waitH").textContent = "Verify your email";
+      $("waitText").textContent = "We sent a link to " + user.email + ". Open it, then tap “I've verified my email.” Check spam if it isn't there.";
+    } else if (status === "denied") {
+      $("waitH").textContent = "No access";
+      $("waitText").textContent = user.email + " doesn't have access to this log. Ask the person who runs it.";
+    } else {
+      $("waitH").textContent = "Waiting for approval";
+      $("waitText").textContent = "You're signed in as " + user.email + ". The log opens here as soon as the admin approves you.";
     }
+    maybeImportFromHash();
+  }
+
+  function watchPeople() {
+    if (peopleUnsub) return;
+    $("peoplePanel").hidden = false;
+    peopleUnsub = fs.onSnapshot(fs.collection(store, "users"), snap => {
+      people = snap.docs.map(d => Object.assign({ uid: d.id }, d.data())).filter(p => (p.email || "").toLowerCase() !== ADMIN_EMAIL);
+      renderPeople();
+    }, () => setMsg("peopleMsg", "Couldn't load people. Reload the page.", "err"));
+  }
+  async function setStatus(p, status) {
+    try { await fs.updateDoc(fs.doc(store, "users", p.uid), { status, decidedAt: Date.now() }); setMsg("peopleMsg", ""); }
+    catch (e) { setMsg("peopleMsg", "Couldn't update " + (p.name || p.email) + ". Try again.", "err"); }
+  }
+  function renderPeople() {
+    const l = $("peopleList"); l.replaceChildren();
+    const order = { pending: 0, approved: 1, denied: 2 };
+    const list = people.slice().sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3) || (b.createdAt || 0) - (a.createdAt || 0));
+    const waiting = list.filter(p => p.status === "pending").length;
+    $("peopleCount").textContent = waiting ? waiting + " waiting" : "";
+    if (!list.length) { l.append(el("p", "empty", "No one else has signed up yet. Send them the link; they'll show up here to approve.")); return; }
+    list.forEach(p => {
+      const row = el("div", "med person"), info = el("div", "info");
+      const nm = el("div", "name"); nm.style.fontWeight = "700"; nm.style.display = "flex"; nm.style.gap = "8px"; nm.style.alignItems = "center"; nm.style.flexWrap = "wrap";
+      nm.append(document.createTextNode(p.name || p.email), el("span", "tag", p.status === "approved" ? "Approved" : p.status === "denied" ? "No access" : "Waiting"));
+      info.append(nm, el("span", "sub", p.email || ""));
+      const act = el("div", "actions");
+      const btn = (label, cls, fn) => { const b = el("button", cls, label); b.type = "button"; b.addEventListener("click", fn); act.append(b); };
+      if (p.status === "approved") {
+        const armed = armedPerson === p.uid;
+        btn(armed ? "Tap to remove" : "Remove", "del" + (armed ? " armed" : ""), () => {
+          if (!armed) { armedPerson = p.uid; renderPeople(); return; }
+          armedPerson = null; setStatus(p, "denied");
+        });
+      } else {
+        btn("Approve", "primary slim", () => setStatus(p, "approved"));
+        if (p.status !== "denied") btn("Deny", "ghost", () => setStatus(p, "denied"));
+      }
+      row.append(info, act); l.append(row);
+    });
+  }
+
+  document.body.classList.add("gated");   // hide the log until we know who's signed in
+  authMod.onAuthStateChanged(auth, user => {
+    if (meUnsub) { meUnsub(); meUnsub = null; }
+    if (!user) { closeLog(); setGate("signin"); renderAll(); maybeImportFromHash(); return; }
+    const ref = fs.doc(store, "users", user.uid);
+    meUnsub = fs.onSnapshot(ref, snap => {
+      if (!snap.exists()) {   // first sign-in: ask for access
+        fs.setDoc(ref, { email: user.email, name: signupName || user.email.split("@")[0], status: "pending", createdAt: Date.now() }).catch(() => {});
+      }
+      const status = snap.exists() ? snap.data().status : "pending";
+      if (isAdminUser(user) || status === "approved") openLog(user); else showWaiting(user, status);
+    }, () => { if (isAdminUser(user)) openLog(user); else showWaiting(user, "pending"); });
   });
 })();
 </script>

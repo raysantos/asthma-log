@@ -12,14 +12,19 @@ A phone-friendly log of asthma medications. It covers:
 
 On a phone, open the link and choose **Add to Home Screen** so it opens like an app.
 
-## Password lock
+## Accounts and approval
 
-With Firebase connected, the log is private: you enter the family password once on each device before you can see or change anything. Without Firebase, anyone can view the on-device log, and the password is needed to log a dose, delete one or change medications.
+With Firebase connected, the log is private and everyone has their own login.
 
-- **With Firebase connected (the shared log):** the password is checked by Firebase's sign-in service, and the database's security rules (`firestore.rules`) refuse any read or change that doesn't come from the family account. The page itself can't be edited to get around it. The first unlock creates the family account, so enter the password on the live app right after Firebase is connected.
-- **Without Firebase:** the page checks a hash of the password. That only keeps out casual visitors.
+- **Sign up:** people open the app, tap **Create an account**, and enter their name, email and a password. They then see a "Waiting for approval" screen and can't see anything in the log.
+- **Admin:** `raysandesigns@gmail.com` is the admin, once its email address is verified. The admin sees a **People** section on the **Medications** tab with everyone who has signed up, and can **Approve**, **Deny** or **Remove** them. Removing someone cuts off access right away.
+- **Approved people** all see and add to the same shared log.
+- **Forgot password:** the sign-in screen sends a reset link by email.
+- **Enforced by the database:** `firestore.rules` refuses every read and change from anyone who isn't approved, so the page can't be edited to get around it.
 
-To lock a device again, go to **Medications → Sync & backup → Lock this device**.
+To change the admin, update the email in both `firestore.rules` and the `ADMIN_EMAIL` line in `index.html`.
+
+Without Firebase, the app saves on one device and uses a single password to log doses. That only keeps out casual visitors.
 
 ## How saving works
 
@@ -37,7 +42,8 @@ Your Google account needs 2-Step Verification turned on before Firebase will let
 5. **Connect the app.**
    - Go to **Project settings → Your apps → Web (`</>`)**, register the app, and copy the `firebaseConfig` values.
    - Put them in `firebase-config.js`.
-6. **Unlock once.** Open the app, enter the family password on the **Dosage** tab, then open your import link to load the existing log.
+6. **Set up the admin.** Open the app, tap **Create an account**, and sign up with the admin email. Open the verification link Firebase emails you, then tap **I've verified my email**.
+7. **Add your authorized domains.** In **Authentication → Settings → Authorized domains**, add every address the app runs on (for example the GitHub Pages and Vercel domains).
 
 ## Import links
 

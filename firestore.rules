@@ -1,24 +1,48 @@
 rules_version = '2';
 
-// Only the shared family account (unlocked with the family password in the app)
-// can view, add, change or delete anything.
+// Everyone signs in with their own email and password.
+// - New accounts start as "pending" and can't see anything.
+// - The admin (a verified raysandesigns@gmail.com) approves or removes people.
+// - Approved people, and the admin, can view and change the shared log.
 // Paste this into Firebase console -> Firestore Database -> Rules -> Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function family() {
-      return request.auth != null
-        && request.auth.token.email == 'asthma-log-family@example.com';
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'raysandesigns@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function approved() {
+      return isAdmin() || (signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved');
+    }
+
+    // One record per person. People can only ask for access; only the admin decides.
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'status', 'createdAt'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.createdAt is number;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt'])
+        && request.resource.data.status in ['approved', 'denied'];
+      allow delete: if isAdmin();
     }
 
     match /config/meds {
-      allow read: if family();
-      allow write: if family() && request.resource.data.items is list;
+      allow read: if approved();
+      allow write: if approved() && request.resource.data.items is list;
     }
 
     match /doses/{doseId} {
-      allow read: if family();
-      allow delete: if family();
-      allow create, update: if family()
+      allow read: if approved();
+      allow delete: if approved();
+      allow create, update: if approved()
         && request.resource.data.at is number
         && request.resource.data.name is string
         && request.resource.data.keys().hasOnly(['medId', 'name', 'kind', 'dose', 'note', 'at', 'loggedAt']);
