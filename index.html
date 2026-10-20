@@ -300,6 +300,15 @@ textarea { min-height: 64px; resize: vertical; }
       <p id="waitText"></p>
       <div class="btnrow"><button class="ghost" id="recheckBtn" type="button" hidden>I've verified my email</button><button class="ghost" id="signOutBtn" type="button">Sign out</button></div>
     </div>
+    <div class="gate-form" data-mode="action" hidden>
+      <h2 id="actH">One moment…</h2>
+      <p id="actText"></p>
+      <div class="gate-form" id="actReset" hidden>
+        <div class="field"><label for="actPw">New password (at least 6 characters)</label><input id="actPw" type="password" autocomplete="new-password" enterkeyhint="go"></div>
+        <button class="primary" id="actResetBtn" type="button">Save new password</button>
+      </div>
+      <button class="primary" id="actDone" type="button" hidden>Continue</button>
+    </div>
     <p class="msg" id="gateMsg" role="status"></p>
   </section>
 
@@ -1261,8 +1270,51 @@ async function maybeImportFromHash() {
     });
   }
 
+  // Links in Firebase's emails (verify email, reset password) open here when the
+  // project's action URL points at this app. They arrive as ?mode=...&oobCode=...
+  const qs = new URLSearchParams(location.search);
+  let actionMode = qs.get("oobCode") ? qs.get("mode") : null;
+  const clearActionUrl = () => { try { history.replaceState(null, "", location.pathname + location.hash); } catch (_) {} };
+  function finishAction() { actionMode = null; clearActionUrl(); handleUser(auth.currentUser); }
+  async function runAction() {
+    const code = qs.get("oobCode");
+    setGate("action"); setMsg("gateMsg", "");
+    const show = (h, t, done) => { $("actH").textContent = h; $("actText").textContent = t; $("actDone").hidden = !done; };
+    if (actionMode === "verifyEmail" || actionMode === "recoverEmail") {
+      try {
+        await authMod.applyActionCode(auth, code);
+        const u = auth.currentUser;
+        if (u) { try { await u.reload(); await u.getIdToken(true); } catch (_) {} }
+        show(actionMode === "verifyEmail" ? "Email verified" : "Email restored",
+             actionMode === "verifyEmail" ? "Thanks. Your email address is confirmed." : "Your account's email address was changed back.", true);
+      } catch (e) { show("This link didn't work", "It may have expired or already been used. Sign in and we'll send a fresh one if you need it.", true); }
+    } else if (actionMode === "resetPassword") {
+      try {
+        const email = await authMod.verifyPasswordResetCode(auth, code);
+        show("Choose a new password", "For " + email + ".", false); $("actReset").hidden = false;
+        const save = async () => {
+          const pw = $("actPw").value;
+          if (pw.length < 6) { setMsg("gateMsg", "Use a password with at least 6 characters.", "err"); return; }
+          $("actResetBtn").disabled = true;
+          try {
+            await authMod.confirmPasswordReset(auth, code, pw);
+            $("actPw").value = ""; $("actReset").hidden = true; setMsg("gateMsg", "");
+            $("siEmail").value = email;
+            show("Password changed", "Sign in with your new password.", true);
+          } catch (e) { setMsg("gateMsg", authErr(e, "Couldn't save it. The link may have expired; request a new one."), "err"); }
+          finally { $("actResetBtn").disabled = false; }
+        };
+        $("actResetBtn").addEventListener("click", save);
+        $("actPw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); save(); } });
+      } catch (e) { show("This link didn't work", "It may have expired or already been used. Tap Forgot password to get a new one.", true); }
+    } else { show("This link didn't work", "Open the app and try again.", true); }
+  }
+  $("actDone").addEventListener("click", finishAction);
+
   document.body.classList.add("gated");   // hide the log until we know who's signed in
-  authMod.onAuthStateChanged(auth, user => {
+  if (actionMode) runAction();
+  authMod.onAuthStateChanged(auth, user => { if (!actionMode) handleUser(user); });
+  function handleUser(user) {
     if (meUnsub) { meUnsub(); meUnsub = null; }
     if (!user) { closeLog(); setGate("signin"); renderAll(); maybeImportFromHash(); return; }
     const ref = fs.doc(store, "users", user.uid);
@@ -1273,7 +1325,7 @@ async function maybeImportFromHash() {
       const status = snap.exists() ? snap.data().status : "pending";
       if (isAdminUser(user) || status === "approved") openLog(user); else showWaiting(user, status);
     }, () => { if (isAdminUser(user)) openLog(user); else showWaiting(user, "pending"); });
-  });
+  }
 })();
 </script>
 </body>
