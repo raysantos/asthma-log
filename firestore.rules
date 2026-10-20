@@ -1,7 +1,7 @@
 rules_version = '2';
 
-// Anyone can view the log. Only the shared family account (unlocked with the
-// family password in the app) can add, change or delete anything.
+// Only the shared family account (unlocked with the family password in the app)
+// can view, add, change or delete anything.
 // Paste this into Firebase console -> Firestore Database -> Rules -> Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,12 +11,12 @@ service cloud.firestore {
     }
 
     match /config/meds {
-      allow read: if true;
+      allow read: if family();
       allow write: if family() && request.resource.data.items is list;
     }
 
     match /doses/{doseId} {
-      allow read: if true;
+      allow read: if family();
       allow delete: if family();
       allow create, update: if family()
         && request.resource.data.at is number

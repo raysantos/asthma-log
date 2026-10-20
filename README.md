@@ -14,9 +14,9 @@ On a phone, open the link and choose **Add to Home Screen** so it opens like an 
 
 ## Password lock
 
-Anyone can view the log. To log a dose, delete one or change medications, you enter the family password once on each device.
+With Firebase connected, the log is private: you enter the family password once on each device before you can see or change anything. Without Firebase, anyone can view the on-device log, and the password is needed to log a dose, delete one or change medications.
 
-- **With Firebase connected (the shared log):** the password is checked by Firebase's sign-in service, and the database's security rules (`firestore.rules`) refuse any change that doesn't come from the family account. The page itself can't be edited to get around it. The first unlock creates the family account, so enter the password on the live app right after Firebase is connected.
+- **With Firebase connected (the shared log):** the password is checked by Firebase's sign-in service, and the database's security rules (`firestore.rules`) refuse any read or change that doesn't come from the family account. The page itself can't be edited to get around it. The first unlock creates the family account, so enter the password on the live app right after Firebase is connected.
 - **Without Firebase:** the page checks a hash of the password. That only keeps out casual visitors.
 
 To lock a device again, go to **Medications → Sync & backup → Lock this device**.
