@@ -105,7 +105,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); font-
 .wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
 h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
 h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.01em; }
-@supports (-webkit-background-clip: text) or (background-clip: text) { header h1 { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; width: fit-content; } }
+header h1 { color: #000; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) header h1 { color: #fff; } }
+:root[data-theme="dark"] header h1 { color: #fff; }
 h2 { font-size: 1.15rem; font-weight: 600; }
 .eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
 .num { font-variant-numeric: tabular-nums; }
